@@ -3,11 +3,22 @@
     "development"
   ],
   "hints": {
+<<<<<<< HEAD
+=======
+    "axe/forms": [
+      "default",
+      {
+        "label": "off",
+        "select-name": "off"
+      }
+    ],
+>>>>>>> 053f29c88e9ead5aa1cd826c6bb2683b3e32e7b7
     "axe/name-role-value": [
       "default",
       {
         "button-name": "off"
       }
+<<<<<<< HEAD
     ],
     "axe/keyboard": [
       "default",
@@ -39,6 +50,8 @@
           "-webkit-overflow-scrolling"
         ]
       }
+=======
+>>>>>>> 053f29c88e9ead5aa1cd826c6bb2683b3e32e7b7
     ]
   }
 }
