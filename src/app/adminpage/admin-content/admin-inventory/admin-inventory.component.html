@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/assets/IMSlogo.png" />
+    <title>StockEasy - Inventory Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .highlight-row {
+            transition: background-color 0.3s;
+        }
+        .highlight-row:hover {
+            background-color: #f3f4f6;
+        }
+        .drag-drop-area {
+            transition: all 0.3s;
+        }
+        .drag-drop-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 0.5rem;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            background-color: #e5e7eb;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .filter-chip button {
+            margin-left: 0.5rem;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+   
+    
+    <!-- Main Layout -->
+    <div class="flex h-screen pt-16">
+    
+
+        <!-- Main Content -->
+        <div class="p-6 w-full overflow-y-auto">
+            <!-- Inventory Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-boxes mr-2"></i>Inventory Management
+                </h1>
+                <div class="flex items-center space-x-2">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="Search products..." class="pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" oninput="filterProducts()">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Chips -->
+            <div id="filterChips" class="mb-4 flex flex-wrap items-center">
+                <span class="text-sm text-gray-600 mr-2">Filters:</span>
+                <!-- Filters will be added here dynamically -->
+            </div>
+
+            <!-- Action Toolbar -->
+            <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-file-import mr-2"></i>Import
+                        </button>
+                        <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition flex items-center" onclick="toggleAddProduct()">
+                            <i class="fas fa-plus mr-2"></i>Add Product
+                        </button>
+                        <div class="relative">
+                            <select id="categorySelect" class="appearance-none border p-2 pr-8 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" onchange="handleCategoryChange(this.value)">
+                                <option value="">All Categories</option>
+                                <option value="dairy">Dairy Products</option>
+                                <option value="electronic">Electronics</option>
+                                <option value="grocery">Grocery</option>
+                                <option value="beverages">Beverages</option>
+                                <option value="snacks">Snacks</option>
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-500 pointer-events-none"></i>
+                        </div>
+                        <div class="relative">
+                            <select id="subcategorySelect" class="appearance-none border p-2 pr-8 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hidden">
+                                <option value="">All Subcategories</option>
+                            </select>
+                            <!-- <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-500 pointer-events-none"></i> -->
+                        </div>
+                        <div class="relative">
+                            <select id="statusFilter" class="appearance-none border p-2 pr-8 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+                                <option value="">All Statuses</option>
+                                <option value="in_stock">In Stock</option>
+                                <option value="low_stock">Low Stock</option>
+                                <option value="out_of_stock">Out of Stock</option>
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-500 pointer-events-none"></i>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center bg-white border rounded-lg overflow-hidden">
+                            <input type="date" id="startDate" class="p-2 w-36 focus:outline-none border-r" />
+                            <span class="px-2 text-gray-500">to</span>
+                            <input type="date" id="endDate" class="p-2 w-36 focus:outline-none" />
+                        </div>
+                        <div class="relative dropdown">
+                            <button id="exportBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition flex items-center">
+                                <i class="fas fa-download mr-2"></i>Export
+                            </button>
+                            <div class="dropdown-content right-0 mt-1">
+                                <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100" onclick="exportData('pdf')"><i class="fas fa-file-pdf mr-2 text-red-500"></i>PDF</a>
+                                <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100" onclick="exportData('excel')"><i class="fas fa-file-excel mr-2 text-green-500"></i>Excel</a>
+                                <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100" onclick="exportData('csv')"><i class="fas fa-file-csv mr-2 text-blue-500"></i>CSV</a>
+                            </div>
+                        </div>
+                        <button id="resetFiltersBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition flex items-center" onclick="resetFilters()">
+                            <i class="fas fa-sync-alt mr-2"></i>Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Table -->
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-4 text-left font-semibold text-gray-700">Product ID</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Product</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Category</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Price</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Stock</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Threshold</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Status</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Expiry</th>
+                                <th class="p-4 text-left font-semibold text-gray-700">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200" id="inventoryTableBody">
+                            <!-- Products will be loaded here dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                    <div class="text-sm text-gray-700" id="paginationInfo">
+                        Showing <span class="font-medium">1</span> to <span class="font-medium">5</span> of <span class="font-medium">10</span> results
+                    </div>
+                    <div class="flex space-x-2" id="paginationControls">
+                        <button class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50" disabled id="prevPage">Previous</button>
+                        <button class="px-4 py-2 border rounded-lg bg-blue-500 text-white hover:bg-blue-600">1</button>
+                        <button class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100" id="nextPage">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Product Modal -->
+            <div id="addProductPage" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <div class="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
+                        <h2 class="text-2xl font-bold text-gray-800">
+                            <i class="fas fa-plus-circle mr-2 text-green-500"></i>Add New Product
+                        </h2>
+                        <button onclick="toggleAddProduct()" class="text-gray-500 hover:text-red-500 text-xl transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <div id="dragDropArea" class="drag-drop-area border-dashed border-2 border-gray-300 rounded-lg p-8 text-center mb-6 cursor-pointer transition" 
+                            ondragover="event.preventDefault(); this.classList.add('dragover');" 
+                            ondragleave="this.classList.remove('dragover');" 
+                            ondrop="handleDrop(event)">
+                            <div class="flex flex-col items-center justify-center space-y-2">
+                                <i class="fas fa-cloud-upload-alt text-4xl text-blue-500"></i>
+                                <p class="text-gray-600">Drag & drop product image here</p>
+                                <p class="text-gray-500 text-sm">or</p>
+                                <button class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition">
+                                    <i class="fas fa-folder-open mr-2"></i>Browse Files
+                                </button>
+                                <p class="text-gray-400 text-xs mt-2">JPG, PNG up to 2MB</p>
+                            </div>
+                            <input type="file" id="productImage" class="hidden" accept="image/*">
+                        </div>
+                        <form id="productForm" onsubmit="return addProduct(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="mb-4">
+                                <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+                                <div class="relative">
+                                    <input id="productName" type="text" placeholder="e.g., Maggi Noodles" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                    <i class="fas fa-box absolute left-3 top-4 text-gray-400"></i>
+                                </div>
+                                <p id="errorName" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Product Name is required</p>
+                            </div>
+                            <div class="mb-4">
+                                <label for="productID" class="block text-sm font-medium text-gray-700 mb-1">Product ID *</label>
+                                <div class="relative">
+                                    <input id="productID" type="text" placeholder="e.g., PRD-001" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                    <i class="fas fa-barcode absolute left-3 top-4 text-gray-400"></i>
+                                </div>
+                                <p id="errorID" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Product ID is required</p>
+                            </div>
+                            <div class="mb-4">
+                                <label for="productCategory" class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                                <div class="relative">
+                                    <select id="productCategory" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none pl-10 pr-8 cursor-pointer">
+                                        <option value="" selected disabled>Select a category</option>
+                                        <option value="dairy">Dairy Products</option>
+                                        <option value="electronic">Electronics</option>
+                                        <option value="grocery">Grocery</option>
+                                        <option value="beverages">Beverages</option>
+                                        <option value="snacks">Snacks</option>
+                                    </select>
+                                    <i class="fas fa-folder absolute left-3 top-4 text-gray-400"></i>
+                                    <i class="fas fa-chevron-down absolute right-3 top-4 text-gray-400 pointer-events-none"></i>
+                                </div>
+                                <p id="errorCategory" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Product Category is required</p>
+                            </div>
+                            <div class="mb-4">
+                                <label for="productSubcategory" class="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                                <div class="relative">
+                                    <input id="productSubcategory" type="text" placeholder="e.g., Instant Noodles" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                    <i class="fas fa-tags absolute left-3 top-4 text-gray-400"></i>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label for="buyingPrice" class="block text-sm font-medium text-gray-700 mb-1">Buying Price *</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-4 text-gray-400">₹</span>
+                                    <input id="buyingPrice" type="number" step="0.01" placeholder="0.00" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                </div>
+                                <p id="errorPrice" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Buying Price is required</p>
+                            </div>
+                            <div class="mb-4">
+                                <label for="sellingPrice" class="block text-sm font-medium text-gray-700 mb-1">Selling Price *</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-4 text-gray-400">₹</span>
+                                    <input id="sellingPrice" type="number" step="0.01" placeholder="0.00" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                </div>
+                                <p id="errorSellingPrice" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Selling Price is required</p>
+                            </div>
+                            <div class="mb-4">
+                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
+                                <div class="relative">
+                                    <input id="quantity" type="number" placeholder="0" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                    <i class="fas fa-layer-group absolute left-3 top-4 text-gray-400"></i>
+                                </div>
+                                <p id="errorQuantity" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Quantity is required</p>
+                            </div>
+                            <div class="mb-4">
+                                <label for="unit" class="block text-sm font-medium text-gray-700 mb-1">Unit *</label>
+                                <div class="relative">
+                                    <select id="unit" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none pl-10 pr-8 cursor-pointer">
+                                        <option value="" selected disabled>Select unit</option>
+                                        <option value="pcs">Pieces</option>
+                                        <option value="kg">Kilograms</option>
+                                        <option value="g">Grams</option>
+                                        <option value="l">Liters</option>
+                                        <option value="ml">Milliliters</option>
+                                        <option value="box">Box</option>
+                                        <option value="pack">Pack</option>
+                                    </select>
+                                    <i class="fas fa-balance-scale absolute left-3 top-4 text-gray-400"></i>
+                                    <i class="fas fa-chevron-down absolute right-3 top-4 text-gray-400 pointer-events-none"></i>
+                                </div>
+                                <p id="errorUnit" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Unit is required</p>
+                            </div>
+                            <div class="mb-4">
+                                <label for="expiry" class="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                                <div class="relative">
+                                    <input id="expiry" type="date" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                    <i class="fas fa-calendar-alt absolute left-3 top-4 text-gray-400"></i>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label for="threshold" class="block text-sm font-medium text-gray-700 mb-1">Low Stock Threshold *</label>
+                                <div class="relative">
+                                    <input id="threshold" type="number" placeholder="0" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none pl-10">
+                                    <i class="fas fa-exclamation-triangle absolute left-3 top-4 text-gray-400"></i>
+                                </div>
+                                <p id="errorThreshold" class="text-red-600 text-sm mt-1 hidden"><i class="fas fa-exclamation-circle mr-1"></i>Threshold is required</p>
+                            </div>
+                            <div class="mb-4 md:col-span-2">
+                                <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+                                <div class="relative">
+                                    <select id="supplier" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none pl-10 pr-8 cursor-pointer">
+                                        <option value="" selected disabled>Select supplier</option>
+                                        <option value="Supplier X">Supplier X</option>
+                                        <option value="Supplier Y">Supplier Y</option>
+                                        <option value="Supplier Z">Supplier Z</option>
+                                    </select>
+                                    <i class="fas fa-truck absolute left-3 top-4 text-gray-400"></i>
+                                    <i class="fas fa-chevron-down absolute right-3 top-4 text-gray-400 pointer-events-none"></i>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="sticky bottom-0 bg-white p-4 border-t flex justify-between">
+                        <button type="button" onclick="toggleAddProduct()" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </button>
+                        <button type="submit" form="productForm" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-save mr-2"></i>Save Product
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product View Modal -->
+            <div id="productView" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <div class="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
+                        <h2 class="text-2xl font-semibold text-gray-800">
+                            <i class="fas fa-box-open mr-2 text-blue-500"></i>Product Details
+                        </h2>
+                        <button onclick="closeProductView()" class="text-gray-500 hover:text-red-500 text-xl transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <div class="w-full md:w-1/3">
+                                <div class="bg-gray-100 rounded-lg h-64 flex items-center justify-center">
+                                    <i class="fas fa-box-open text-5xl text-gray-400"></i>
+                                </div>
+                            </div>
+                            <div class="w-full md:w-2/3">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-blue-600 mb-3 border-b pb-2 flex items-center">
+                                            <i class="fas fa-info-circle mr-2"></i>Product Information
+                                        </h3>
+                                        <ul class="space-y-3">
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Product ID</strong>
+                                                <span id="viewProductID" class="text-gray-700">PRD-001</span>
+                                                <input id="editProductID" type="text" class="hidden w-full p-2 border rounded mt-1">
+                                            </li>
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Name</strong>
+                                                <span id="viewProductName" class="text-gray-700 font-medium">Maggi Noodles</span>
+                                                <input id="editProductName" type="text" class="hidden w-full p-2 border rounded mt-1">
+                                            </li>
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Category</strong>
+                                                <span id="viewProductCategory" class="text-gray-700">Snacks</span>
+                                                <input id="editProductCategory" type="text" class="hidden w-full p-2 border rounded mt-1">
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-green-600 mb-3 border-b pb-2 flex items-center">
+                                            <i class="fas fa-chart-line mr-2"></i>Stock & Pricing
+                                        </h3>
+                                        <ul class="space-y-3">
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Buying Price</strong>
+                                                <span class="text-gray-700">₹<span id="viewBuyingValue">35.00</span></span>
+                                                <div class="hidden flex items-center">
+                                                    <span class="mr-1">₹</span>
+                                                    <input id="editBuyingValue" type="number" step="0.01" class="w-full p-2 border rounded">
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Selling Price</strong>
+                                                <span class="text-gray-700">₹<span id="viewSellingValue">43.00</span></span>
+                                                <div class="hidden flex items-center">
+                                                    <span class="mr-1">₹</span>
+                                                    <input id="editSellingValue" type="number" step="0.01" class="w-full p-2 border rounded">
+                                                </div>
+                                            </li>
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Stock</strong>
+                                                <span id="viewRemainingStock" class="text-gray-700">43</span>
+                                                <input id="editRemainingStock" type="number" class="hidden w-full p-2 border rounded mt-1">
+                                            </li>
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Threshold</strong>
+                                                <span id="viewThreshold" class="text-gray-700">12</span>
+                                                <input id="editThreshold" type="number" class="hidden w-full p-2 border rounded mt-1">
+                                            </li>
+                                            <li>
+                                                <strong class="block text-sm text-gray-500">Expiry Date</strong>
+                                                <span id="viewExpiryDate" class="text-gray-700">11/04/2026</span>
+                                                <input id="editExpiryDate" type="date" class="hidden w-full p-2 border rounded mt-1">
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="mt-6">
+                                    <h3 class="text-lg font-semibold text-purple-600 mb-3 border-b pb-2 flex items-center">
+                                        <i class="fas fa-truck mr-2"></i>Supplier Information
+                                    </h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <strong class="block text-sm text-gray-500">Supplier Name</strong>
+                                            <span id="viewSupplierName" class="text-gray-700">Supplier X</span>
+                                            <input id="editSupplierName" type="text" class="hidden w-full p-2 border rounded mt-1">
+                                        </div>
+                                        <div>
+                                            <strong class="block text-sm text-gray-500">Contact Number</strong>
+                                            <span id="viewContactNumber" class="text-gray-700">9876543210</span>
+                                            <input id="editContactNumber" type="tel" class="hidden w-full p-2 border rounded mt-1">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sticky bottom-0 bg-white p-4 border-t flex flex-wrap justify-end gap-3">
+                        <button id="cancelEdit" onclick="toggleEditMode(false)" class="hidden bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </button>
+                        <button id="saveEdit" onclick="saveChanges()" class="hidden bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-save mr-2"></i>Save Changes
+                        </button>
+                        <button id="editButton" onclick="toggleEditMode(true)" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-edit mr-2"></i>Edit
+                        </button>
+                        <button id="deleteButton" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg transition flex items-center" onclick="confirmDeleteProduct()">
+                            <i class="fas fa-trash-alt mr-2"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Modal -->
+            <div id="deleteConfirmationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-800">
+                            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Confirm Deletion
+                        </h3>
+                        <button onclick="closeDeleteModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-6">
+                        <p class="text-gray-700">Are you sure you want to delete <span id="productToDeleteName" class="font-semibold"></span>?</p>
+                        <p class="text-sm text-gray-500 mt-2">This action cannot be undone.</p>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button onclick="closeDeleteModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg transition">
+                            Cancel
+                        </button>
+                        <button onclick="deleteProduct()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Product data - in a real app this would come from a database
+        let products = [
+            {
+                id: "PRD-001",
+                name: "Maggi Noodles",
+                category: "Snacks",
+                subcategory: "Instant Noodles",
+                buyingPrice: 35.00,
+                sellingPrice: 43.00,
+                quantity: 43,
+                threshold: 12,
+                expiry: "2026-04-11",
+                supplier: "Supplier X",
+                contact: "9876543210",
+                status: "in_stock"
+            },
+            {
+                id: "PRD-002",
+                name: "Amul Milk",
+                category: "Dairy Products",
+                subcategory: "Milk",
+                buyingPrice: 20.00,
+                sellingPrice: 25.00,
+                quantity: 50,
+                threshold: 20,
+                expiry: "2025-06-15",
+                supplier: "Supplier Y",
+                contact: "9876543211",
+                status: "in_stock"
+            },
+            {
+                id: "PRD-003",
+                name: "Coca Cola",
+                category: "Beverages",
+                subcategory: "Soda",
+                buyingPrice: 32.00,
+                sellingPrice: 40.00,
+                quantity: 15,
+                threshold: 20,
+                expiry: "2025-12-30",
+                supplier: "Supplier Z",
+                contact: "9876543212",
+                status: "low_stock"
+            },
+            {
+                id: "PRD-004",
+                name: "Sunflower Oil",
+                category: "Grocery",
+                subcategory: "Oil",
+                buyingPrice: 120.00,
+                sellingPrice: 150.00,
+                quantity: 3,
+                threshold: 5,
+                expiry: "2026-03-01",
+                supplier: "Supplier X",
+                contact: "9876543210",
+                status: "low_stock"
+            },
+            {
+                id: "PRD-005",
+                name: "Dairy Milk Chocolate",
+                category: "Snacks",
+                subcategory: "Chocolate",
+                buyingPrice: 45.00,
+                sellingPrice: 55.00,
+                quantity: 0,
+                threshold: 10,
+                expiry: "2025-09-30",
+                supplier: "Supplier Y",
+                contact: "9876543211",
+                status: "out_of_stock"
+            },
+            {
+                id: "PRD-006",
+                name: "iPhone 13",
+                category: "Electronics",
+                subcategory: "Mobile",
+                buyingPrice: 65000.00,
+                sellingPrice: 79900.00,
+                quantity: 8,
+                threshold: 5,
+                expiry: "",
+                supplier: "Supplier Z",
+                contact: "9876543212",
+                status: "in_stock"
+            },
+            {
+                id: "PRD-007",
+                name: "Bru Coffee",
+                category: "Beverages",
+                subcategory: "Coffee",
+                buyingPrice: 180.00,
+                sellingPrice: 220.00,
+                quantity: 5,
+                threshold: 10,
+                expiry: "2025-11-15",
+                supplier: "Supplier X",
+                contact: "9876543210",
+                status: "low_stock"
+            },
+            {
+                id: "PRD-008",
+                name: "Basmati Rice",
+                category: "Grocery",
+                subcategory: "Rice",
+                buyingPrice: 80.00,
+                sellingPrice: 100.00,
+                quantity: 25,
+                threshold: 15,
+                expiry: "2026-01-31",
+                supplier: "Supplier Y",
+                contact: "9876543211",
+                status: "in_stock"
+            },
+            {
+                id: "PRD-009",
+                name: "Amul Butter",
+                category: "Dairy Products",
+                subcategory: "Butter",
+                buyingPrice: 45.00,
+                sellingPrice: 55.00,
+                quantity: 12,
+                threshold: 10,
+                expiry: "2025-08-20",
+                supplier: "Supplier Z",
+                contact: "9876543212",
+                status: "in_stock"
+            },
+            {
+                id: "PRD-010",
+                name: "Lays Chips",
+                category: "Snacks",
+                subcategory: "Chips",
+                buyingPrice: 15.00,
+                sellingPrice: 20.00,
+                quantity: 18,
+                threshold: 15,
+                expiry: "2025-10-10",
+                supplier: "Supplier X",
+                contact: "9876543210",
+                status: "in_stock"
+            }
+        ];
+
+        // Pagination variables
+        let currentPage = 1;
+        const itemsPerPage = 5;
+        let filteredProducts = [...products];
+        let productToDeleteId = null;
+
+        // Initialize the page
+        document.addEventListener("DOMContentLoaded", function() {
+            renderProducts();
+            setupPagination();
+            
+            // Set up event listeners for filters
+            document.getElementById('categorySelect').addEventListener('change', filterProducts);
+            document.getElementById('subcategorySelect').addEventListener('change', filterProducts);
+            document.getElementById('statusFilter').addEventListener('change', filterProducts);
+            document.getElementById('searchInput').addEventListener('input', filterProducts);
+            document.getElementById('startDate').addEventListener('change', filterProducts);
+            document.getElementById('endDate').addEventListener('change', filterProducts);
+            
+            // Pagination buttons
+            document.getElementById('prevPage').addEventListener('click', goToPrevPage);
+            document.getElementById('nextPage').addEventListener('click', goToNextPage);
+            
+            // Drag and drop for image upload
+            const dragDropArea = document.getElementById("dragDropArea");
+            const fileInput = document.getElementById("productImage");
+            
+            dragDropArea.addEventListener("click", () => fileInput.click());
+            fileInput.addEventListener("change", (e) => {
+                if (fileInput.files.length > 0) {
+                    handleFiles(fileInput.files);
+                }
+            });
+        });
+
+        // Render products based on current filters and pagination
+        function renderProducts() {
+            const tbody = document.getElementById("inventoryTableBody");
+            tbody.innerHTML = "";
+            
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredProducts.length);
+            
+            for (let i = startIndex; i < endIndex; i++) {
+                const product = filteredProducts[i];
+                const expiryDate = product.expiry ? new Date(product.expiry).toLocaleDateString('en-GB') : "N/A";
+                
+                let status, statusClass, stockColor;
+                if (product.quantity === 0) {
+                    status = "Out of Stock";
+                    statusClass = "bg-red-100 text-red-800";
+                    stockColor = "red";
+                } else if (product.quantity <= product.threshold) {
+                    status = "Low Stock";
+                    statusClass = "bg-yellow-100 text-yellow-800";
+                    stockColor = "yellow";
+                } else {
+                    status = "In Stock";
+                    statusClass = "bg-green-100 text-green-800";
+                    stockColor = "green";
+                }
+                
+                const stockWidth = product.threshold > 0 
+                    ? Math.min((product.quantity / product.threshold) * 100, 100)
+                    : 0;
+                
+                const row = document.createElement("tr");
+                row.className = "highlight-row";
+                row.dataset.productId = product.id;
+                
+                row.innerHTML = `
+                    <td class="p-4 text-gray-700 font-medium">${product.id}</td>
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-box text-blue-500"></i>
+                            </div>
+                            <div class="font-medium text-gray-900">${product.name}</div>
+                        </div>
+                    </td>
+                    <td class="p-4 text-gray-700">${product.category}</td>
+                    <td class="p-4 font-medium">₹${product.sellingPrice.toFixed(2)}</td>
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            <span class="mr-2">${product.quantity}</span>
+                            <div class="w-16 bg-gray-200 rounded-full h-2">
+                                <div class="bg-${stockColor}-500 h-2 rounded-full" style="width: ${stockWidth}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4">${product.threshold}</td>
+                    <td class="p-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${status}</span>
+                    </td>
+                    <td class="p-4">${expiryDate}</td>
+                    <td class="p-4">
+                        <button class="text-blue-500 hover:text-blue-700 mr-3" onclick="showProductView('${product.name}', '${product.id}', '${product.category}', '${expiryDate}', ${product.buyingPrice}, ${product.quantity}, ${product.threshold}, '${product.supplier}', 0, '${product.contact}')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="text-yellow-500 hover:text-yellow-700" onclick="editProduct('${product.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            }
+            
+            // Update pagination info
+            document.getElementById('paginationInfo').innerHTML = `
+                Showing <span class="font-medium">${startIndex + 1}</span> to <span class="font-medium">${endIndex}</span> of <span class="font-medium">${filteredProducts.length}</span> results
+            `;
+            
+            // Update pagination buttons
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = endIndex >= filteredProducts.length;
+        }
+
+        // Setup pagination controls
+        function setupPagination() {
+            const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+            const paginationControls = document.getElementById('paginationControls');
+            
+            // Clear existing buttons (except prev/next)
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            paginationControls.innerHTML = '';
+            paginationControls.appendChild(prevBtn);
+            
+            // Add page number buttons
+            for (let i = 1; i <= totalPages; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = `px-4 py-2 border rounded-lg ${i === currentPage ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`;
+                pageBtn.textContent = i;
+                pageBtn.addEventListener('click', () => {
+                    currentPage = i;
+                    renderProducts();
+                });
+                paginationControls.appendChild(pageBtn);
+            }
+            
+            paginationControls.appendChild(nextBtn);
+        }
+
+        // Go to previous page
+        function goToPrevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderProducts();
+            }
+        }
+
+        // Go to next page
+        function goToNextPage() {
+            const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderProducts();
+            }
+        }
+
+        // Filter products based on selected filters
+        function filterProducts() {
+            const category = document.getElementById('categorySelect').value;
+            const subcategory = document.getElementById('subcategorySelect').value;
+            const status = document.getElementById('statusFilter').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            // Update filter chips
+            updateFilterChips(category, subcategory, status, searchTerm, startDate, endDate);
+            
+            filteredProducts = products.filter(product => {
+                // Category filter
+                if (category && product.category !== category) return false;
+                
+                // Subcategory filter
+                if (subcategory && product.subcategory !== subcategory) return false;
+                
+                // Status filter
+                if (status) {
+                    if (status === "in_stock" && (product.quantity === 0 || product.quantity <= product.threshold)) return false;
+                    if (status === "low_stock" && (product.quantity === 0 || product.quantity > product.threshold)) return false;
+                    if (status === "out_of_stock" && product.quantity > 0) return false;
+                }
+                
+                // Search term
+                if (searchTerm && 
+                    !product.name.toLowerCase().includes(searchTerm) && 
+                    !product.id.toLowerCase().includes(searchTerm) && 
+                    !product.category.toLowerCase().includes(searchTerm)) {
+                    return false;
+                }
+                
+                // Date range filter
+                if (startDate && product.expiry && product.expiry < startDate) return false;
+                if (endDate && product.expiry && product.expiry > endDate) return false;
+                
+                return true;
+            });
+            
+            currentPage = 1;
+            renderProducts();
+            setupPagination();
+        }
+
+        // Update filter chips display
+        function updateFilterChips(category, subcategory, status, searchTerm, startDate, endDate) {
+            const filterChips = document.getElementById('filterChips');
+            filterChips.innerHTML = '<span class="text-sm text-gray-600 mr-2">Filters:</span>';
+            
+            if (category) {
+                addFilterChip('Category', category);
+            }
+            
+            if (subcategory) {
+                addFilterChip('Subcategory', subcategory);
+            }
+            
+            if (status) {
+                let statusText = '';
+                if (status === 'in_stock') statusText = 'In Stock';
+                if (status === 'low_stock') statusText = 'Low Stock';
+                if (status === 'out_of_stock') statusText = 'Out of Stock';
+                addFilterChip('Status', statusText);
+            }
+            
+            if (searchTerm) {
+                addFilterChip('Search', searchTerm);
+            }
+            
+            if (startDate || endDate) {
+                const dateText = `${startDate || ''} to ${endDate || ''}`;
+                addFilterChip('Date Range', dateText);
+            }
+        }
+
+        // Add a filter chip
+        function addFilterChip(label, value) {
+            const filterChips = document.getElementById('filterChips');
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            chip.innerHTML = `
+                <span>${label}: ${value}</span>
+                <button onclick="removeFilterChip(this, '${label.toLowerCase()}')" class="hover:text-gray-800">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            filterChips.appendChild(chip);
+        }
+
+        // Remove a filter chip and update filters
+        function removeFilterChip(button, filterType) {
+            const chip = button.parentElement;
+            chip.remove();
+            
+            switch(filterType) {
+                case 'category':
+                    document.getElementById('categorySelect').value = '';
+                    document.getElementById('subcategorySelect').value = '';
+                    document.getElementById('subcategorySelect').classList.add('hidden');
+                    break;
+                case 'subcategory':
+                    document.getElementById('subcategorySelect').value = '';
+                    break;
+                case 'status':
+                    document.getElementById('statusFilter').value = '';
+                    break;
+                case 'search':
+                    document.getElementById('searchInput').value = '';
+                    break;
+                case 'date range':
+                    document.getElementById('startDate').value = '';
+                    document.getElementById('endDate').value = '';
+                    break;
+            }
+            
+            filterProducts();
+        }
+
+        // Reset all filters
+        function resetFilters() {
+            document.getElementById('categorySelect').value = '';
+            document.getElementById('subcategorySelect').value = '';
+            document.getElementById('subcategorySelect').classList.add('hidden');
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            
+            filteredProducts = [...products];
+            currentPage = 1;
+            renderProducts();
+            setupPagination();
+            
+            // Clear filter chips
+            document.getElementById('filterChips').innerHTML = '<span class="text-sm text-gray-600 mr-2">Filters:</span>';
+        }
+
+        // Handle category change for subcategories
+        function handleCategoryChange(category) {
+            const subcategorySelect = document.getElementById("subcategorySelect");
+            subcategorySelect.innerHTML = '<option value="">All Subcategories</option>';
+            
+            if (category) {
+                subcategorySelect.classList.remove("hidden");
+                
+                if (category === "dairy") {
+                    subcategorySelect.innerHTML += `
+                        <option>Milk</option>
+                        <option>Paneer</option>
+                        <option>Cheese</option>
+                        <option>Yogurt</option>
+                        <option>Butter</option>
+                    `;
+                } else if (category === "electronic") {
+                    subcategorySelect.innerHTML += `
+                        <option>Mobile</option>
+                        <option>Laptop</option>
+                        <option>Headphones</option>
+                        <option>TV</option>
+                        <option>Camera</option>
+                    `;
+                } else if (category === "grocery") {
+                    subcategorySelect.innerHTML += `
+                        <option>Rice</option>
+                        <option>Pulses</option>
+                        <option>Spices</option>
+                        <option>Oil</option>
+                        <option>Flour</option>
+                    `;
+                } else if (category === "beverages") {
+                    subcategorySelect.innerHTML += `
+                        <option>Juice</option>
+                        <option>Soda</option>
+                        <option>Tea</option>
+                        <option>Coffee</option>
+                        <option>Water</option>
+                    `;
+                } else if (category === "snacks") {
+                    subcategorySelect.innerHTML += `
+                        <option>Chips</option>
+                        <option>Biscuits</option>
+                        <option>Chocolate</option>
+                        <option>Nuts</option>
+                        <option>Cookies</option>
+                    `;
+                }
+            } else {
+                subcategorySelect.classList.add("hidden");
+            }
+            
+            filterProducts();
+        }
+
+        // Export data in different formats
+        function exportData(format) {
+            const fileName = `StockEasy_Inventory_${new Date().toISOString().slice(0,10)}`;
+            
+            switch(format) {
+                case 'pdf':
+                    exportToPDF(fileName);
+                    break;
+                    
+                case 'excel':
+                    exportToExcel(fileName);
+                    break;
+                    
+                case 'csv':
+                    exportToCSV(fileName);
+                    break;
+            }
+            
+            showToast(`Data exported as ${format.toUpperCase()} successfully!`);
+        }
+
+        // Export to PDF
+        function exportToPDF(fileName) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(20);
+            doc.setTextColor(40);
+            doc.text('StockEasy Inventory Report', 105, 15, { align: 'center' });
+            
+            // Add date
+            doc.setFontSize(10);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 105, 22, { align: 'center' });
+            
+            // Add filter info
+            doc.setFontSize(12);
+            doc.text('Filters Applied:', 14, 32);
+            
+            const filterText = document.getElementById('filterChips').textContent.replace('Filters:', '').trim();
+            if (filterText) {
+                doc.text(filterText, 14, 38);
+            } else {
+                doc.text('No filters applied', 14, 38);
+            }
+            
+            // Prepare table data
+            const headers = [
+                "Product ID",
+                "Name",
+                "Category",
+                "Price",
+                "Stock",
+                "Threshold",
+                "Status",
+                "Expiry"
+            ];
+            
+            const data = filteredProducts.map(product => {
+                let status;
+                if (product.quantity === 0) {
+                    status = "Out of Stock";
+                } else if (product.quantity <= product.threshold) {
+                    status = "Low Stock";
+                } else {
+                    status = "In Stock";
+                }
+                
+                const expiryDate = product.expiry ? new Date(product.expiry).toLocaleDateString('en-GB') : "N/A";
+                
+                return [
+                    product.id,
+                    product.name,
+                    product.category,
+                    `₹${product.sellingPrice.toFixed(2)}`,
+                    product.quantity,
+                    product.threshold,
+                    status,
+                    expiryDate
+                ];
+            });
+            
+            // Add table
+            doc.autoTable({
+                startY: 45,
+                head: [headers],
+                body: data,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [59, 130, 246],
+                    textColor: [255, 255, 255]
+                },
+                alternateRowStyles: {
+                    fillColor: [240, 240, 240]
+                },
+                columnStyles: {
+                    3: { cellWidth: 'auto', halign: 'right' }, // Price
+                    4: { cellWidth: 'auto', halign: 'right' }, // Stock
+                    5: { cellWidth: 'auto', halign: 'right' }  // Threshold
+                }
+            });
+            
+            // Add footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for(let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(`Page ${i} of ${pageCount}`, 105, 287, { align: 'center' });
+                doc.text('© StockEasy Inventory Management System', 105, 292, { align: 'center' });
+            }
+            
+            // Save the PDF
+            doc.save(`${fileName}.pdf`);
+        }
+
+        // Export to Excel
+        function exportToExcel(fileName) {
+            // Prepare data
+            const data = filteredProducts.map(product => {
+                let status;
+                if (product.quantity === 0) {
+                    status = "Out of Stock";
+                } else if (product.quantity <= product.threshold) {
+                    status = "Low Stock";
+                } else {
+                    status = "In Stock";
+                }
+                
+                const expiryDate = product.expiry ? new Date(product.expiry).toLocaleDateString('en-GB') : "N/A";
+                
+                return {
+                    "Product ID": product.id,
+                    "Name": product.name,
+                    "Category": product.category,
+                    "Subcategory": product.subcategory,
+                    "Buying Price": product.buyingPrice,
+                    "Selling Price": product.sellingPrice,
+                    "Stock": product.quantity,
+                    "Threshold": product.threshold,
+                    "Status": status,
+                    "Expiry Date": expiryDate,
+                    "Supplier": product.supplier,
+                    "Contact": product.contact
+                };
+            });
+            
+            // Create worksheet
+            const ws = XLSX.utils.json_to_sheet(data);
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+            
+            // Export
+            XLSX.writeFile(wb, `${fileName}.xlsx`);
+        }
+
+        // Export to CSV
+        function exportToCSV(fileName) {
+            // Prepare data
+            const headers = [
+                "Product ID",
+                "Name",
+                "Category",
+                "Subcategory",
+                "Buying Price",
+                "Selling Price",
+                "Stock",
+                "Threshold",
+                "Status",
+                "Expiry Date",
+                "Supplier",
+                "Contact"
+            ];
+            
+            const data = filteredProducts.map(product => {
+                let status;
+                if (product.quantity === 0) {
+                    status = "Out of Stock";
+                } else if (product.quantity <= product.threshold) {
+                    status = "Low Stock";
+                } else {
+                    status = "In Stock";
+                }
+                
+                const expiryDate = product.expiry ? new Date(product.expiry).toLocaleDateString('en-GB') : "N/A";
+                
+                return [
+                    product.id,
+                    product.name,
+                    product.category,
+                    product.subcategory,
+                    product.buyingPrice,
+                    product.sellingPrice,
+                    product.quantity,
+                    product.threshold,
+                    status,
+                    expiryDate,
+                    product.supplier,
+                    product.contact
+                ];
+            });
+            
+            // Combine headers and data
+            const csvData = [headers, ...data];
+            
+            // Convert to CSV string
+            let csvContent = csvData.map(row => row.join(",")).join("\n");
+            
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            saveAs(blob, `${fileName}.csv`);
+        }
+
+        // Show toast notification
+        function showToast(message, type = "success") {
+            const toast = document.createElement('div');
+            const icon = type === "success" ? "fa-check-circle text-green-400" : "fa-exclamation-circle text-red-400";
+            
+            toast.className = `fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg flex items-center`;
+            toast.innerHTML = `
+                <i class="fas ${icon} mr-2"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Toggle between inventory and add product views
+        function toggleAddProduct() {
+            const addProductPage = document.getElementById("addProductPage");
+            addProductPage.classList.toggle("hidden");
+        }
+
+        // Add product to table
+        function addProduct(event) {
+            event.preventDefault();
+            
+            const requiredFields = [
+                { id: "productName", error: "errorName" },
+                { id: "productID", error: "errorID" },
+                { id: "productCategory", error: "errorCategory" },
+                { id: "buyingPrice", error: "errorPrice" },
+                { id: "sellingPrice", error: "errorSellingPrice" },
+                { id: "quantity", error: "errorQuantity" },
+                { id: "unit", error: "errorUnit" },
+                { id: "threshold", error: "errorThreshold" }
+            ];
+
+            let isValid = true;
+            requiredFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                const errorElement = document.getElementById(field.error);
+                if (!element.value.trim()) {
+                    errorElement.classList.remove("hidden");
+                    isValid = false;
+                } else {
+                    errorElement.classList.add("hidden");
+                }
+            });
+
+            if (!isValid) return false;
+
+            // Check if product ID already exists
+            const productId = document.getElementById("productID").value;
+            if (products.some(p => p.id === productId)) {
+                document.getElementById("errorID").textContent = "Product ID already exists";
+                document.getElementById("errorID").classList.remove("hidden");
+                return false;
+            }
+
+            const newProduct = {
+                id: productId,
+                name: document.getElementById("productName").value,
+                category: document.getElementById("productCategory").value,
+                subcategory: document.getElementById("productSubcategory").value || "N/A",
+                buyingPrice: parseFloat(document.getElementById("buyingPrice").value),
+                sellingPrice: parseFloat(document.getElementById("sellingPrice").value),
+                quantity: parseInt(document.getElementById("quantity").value),
+                threshold: parseInt(document.getElementById("threshold").value),
+                expiry: document.getElementById("expiry").value || "",
+                supplier: document.getElementById("supplier").value || "N/A",
+                contact: "9876543210", // Default contact for demo
+                status: parseInt(document.getElementById("quantity").value) === 0 ? "out_of_stock" : 
+                        parseInt(document.getElementById("quantity").value) <= parseInt(document.getElementById("threshold").value) ? "low_stock" : "in_stock"
+            };
+
+            // Add to products array
+            products.unshift(newProduct);
+            
+            // Reset form
+            document.getElementById("productForm").reset();
+            
+            // Update display
+            resetFilters();
+            toggleAddProduct();
+            
+            // Show success message
+            showToast("Product added successfully!");
+            
+            return false;
+        }
+
+        // Show product view modal
+        function showProductView(name, id, category, expiry, buyingPrice, stock, threshold, supplier, onTheWay, contact) {
+            document.getElementById("viewProductName").textContent = name;
+            document.getElementById("viewProductID").textContent = id;
+            document.getElementById("viewProductCategory").textContent = category;
+            document.getElementById("viewExpiryDate").textContent = expiry;
+            document.getElementById("viewBuyingValue").textContent = buyingPrice.toFixed(2);
+            document.getElementById("viewSellingValue").textContent = (buyingPrice * 1.2).toFixed(2); // Assuming 20% markup
+            document.getElementById("viewRemainingStock").textContent = stock;
+            document.getElementById("viewThreshold").textContent = threshold;
+            document.getElementById("viewSupplierName").textContent = supplier;
+            document.getElementById("viewContactNumber").textContent = contact;
+
+            document.getElementById("productView").classList.remove("hidden");
+        }
+
+        // Close product view modal
+        function closeProductView() {
+            document.getElementById("productView").classList.add("hidden");
+            toggleEditMode(false);
+        }
+
+        // Toggle edit mode in product view
+        function toggleEditMode(isEditing) {
+            const viewFields = document.querySelectorAll('[id^="view"]');
+            const editFields = document.querySelectorAll('[id^="edit"]');
+            const editButton = document.getElementById("editButton");
+            const saveButton = document.getElementById("saveEdit");
+            const cancelButton = document.getElementById("cancelEdit");
+            const actionButtons = document.querySelectorAll("#deleteButton");
+
+            if (isEditing) {
+                viewFields.forEach(field => field.classList.add("hidden"));
+                editFields.forEach(field => {
+                    field.classList.remove("hidden");
+                    const viewId = field.id.replace("edit", "view");
+                    const viewElement = document.getElementById(viewId);
+                    if (viewElement) {
+                        if (field.type === "date" && viewElement.textContent.includes("/")) {
+                            const parts = viewElement.textContent.split("/");
+                            if (parts.length === 3) {
+                                field.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            }
+                        } else {
+                            field.value = viewElement.textContent;
+                        }
+                    }
+                });
+
+                editButton.classList.add("hidden");
+                saveButton.classList.remove("hidden");
+                cancelButton.classList.remove("hidden");
+                actionButtons.forEach(button => {
+                    button.classList.add("opacity-50", "cursor-not-allowed");
+                    button.disabled = true;
+                });
+            } else {
+                viewFields.forEach(field => field.classList.remove("hidden"));
+                editFields.forEach(field => field.classList.add("hidden"));
+                editButton.classList.remove("hidden");
+                saveButton.classList.add("hidden");
+                cancelButton.classList.add("hidden");
+                actionButtons.forEach(button => {
+                    button.classList.remove("opacity-50", "cursor-not-allowed");
+                    button.disabled = false;
+                });
+            }
+        }
+
+        // Save changes in product view
+        function saveChanges() {
+            const originalId = document.getElementById("viewProductID").textContent;
+            const newId = document.getElementById("editProductID").value;
+            
+            // Check if ID is being changed to one that already exists
+            if (newId !== originalId && products.some(p => p.id === newId)) {
+                showToast("Product ID already exists!", "error");
+                return;
+            }
+            
+            const productIndex = products.findIndex(p => p.id === originalId);
+            
+            if (productIndex !== -1) {
+                products[productIndex] = {
+                    ...products[productIndex],
+                    name: document.getElementById("editProductName").value,
+                    id: newId,
+                    category: document.getElementById("editProductCategory").value,
+                    buyingPrice: parseFloat(document.getElementById("editBuyingValue").value),
+                    sellingPrice: parseFloat(document.getElementById("editSellingValue").value),
+                    quantity: parseInt(document.getElementById("editRemainingStock").value),
+                    threshold: parseInt(document.getElementById("editThreshold").value),
+                    expiry: document.getElementById("editExpiryDate").value,
+                    supplier: document.getElementById("editSupplierName").value,
+                    contact: document.getElementById("editContactNumber").value,
+                    status: parseInt(document.getElementById("editRemainingStock").value) === 0 ? "out_of_stock" : 
+                            parseInt(document.getElementById("editRemainingStock").value) <= parseInt(document.getElementById("editThreshold").value) ? "low_stock" : "in_stock"
+                };
+                
+                // Update display
+                resetFilters();
+                toggleEditMode(false);
+                showToast("Product updated successfully!");
+            }
+        }
+
+        // Edit product
+        function editProduct(productId) {
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                const expiryDate = product.expiry ? new Date(product.expiry).toLocaleDateString('en-GB') : "N/A";
+                showProductView(product.name, product.id, product.category, expiryDate, product.buyingPrice, product.quantity, product.threshold, product.supplier, 0, product.contact);
+                toggleEditMode(true);
+            }
+        }
+
+        // Confirm product deletion
+        function confirmDeleteProduct() {
+            productToDeleteId = document.getElementById("viewProductID").textContent;
+            const productName = document.getElementById("viewProductName").textContent;
+            
+            document.getElementById("productToDeleteName").textContent = productName;
+            document.getElementById("deleteConfirmationModal").classList.remove("hidden");
+        }
+
+        // Close delete confirmation modal
+        function closeDeleteModal() {
+            document.getElementById("deleteConfirmationModal").classList.add("hidden");
+            productToDeleteId = null;
+        }
+
+        // Delete product
+        function deleteProduct() {
+            if (!productToDeleteId) return;
+            
+            // Remove from products array
+            products = products.filter(product => product.id !== productToDeleteId);
+            
+            // Update filtered products if needed
+            if (filteredProducts.some(p => p.id === productToDeleteId)) {
+                filteredProducts = filteredProducts.filter(product => product.id !== productToDeleteId);
+            }
+            
+            // Close both modals
+            closeDeleteModal();
+            closeProductView();
+            
+            // Refresh the display
+            renderProducts();
+            setupPagination();
+            
+            // Show success message
+            showToast("Product deleted successfully!");
+        }
+
+        // Handle drag and drop for image upload
+        function handleDrop(e) {
+            e.preventDefault();
+            const dragDropArea = document.getElementById("dragDropArea");
+            dragDropArea.classList.remove("dragover");
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFiles(files);
+            }
+        }
+
+        function handleFiles(files) {
+            const file = files[0];
+            if (file.type.match("image.*")) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dragDropArea = document.getElementById("dragDropArea");
+                    dragDropArea.innerHTML = `<img src="${e.target.result}" class="max-h-48 mx-auto rounded-lg" alt="Product Image">`;
+                    dragDropArea.classList.add("bg-gray-50");
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert("Please upload an image file.");
+            }
+        }
+
+        function confirmLogout() {
+            const confirmed = confirm("Admin, do you want to logout? ⚠️");
+            if (confirmed) {
+                window.location.href = "/src/login/login.html";
+            }
+        }
+    </script>
+</body>
+</html>

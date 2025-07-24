@@ -1,0 +1,15 @@
+<!-- <nav>
+  <a routerLink="">Home</a> |
+  <ng-container *ngIf="!(authService.isAuthenticated$ | async)">
+    <a routerLink="/login">Login</a> |
+    <a routerLink="/signup">Register</a>
+  </ng-container>
+  <ng-container *ngIf="authService.isAuthenticated$ | async">
+    <a *ngIf="(authService.getUserRole() | lowercase) === 'admin'" routerLink="/admin/dashboard">Admin Dashboard</a> |
+    <a *ngIf="(authService.getUserRole() | lowercase) === 'sales'" routerLink="/sales/billingpart">Sales Dashboard</a> |
+    <a *ngIf="(authService.getUserRole() | lowercase) === 'supplier'" routerLink="/supplier/supdashboard">Supplier Dashboard</a> |
+    <button (click)="onLogout()">Logout</button>
+  </ng-container>
+</nav> -->
+
+<router-outlet></router-outlet>

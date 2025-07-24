@@ -1,0 +1,46 @@
+  <!-- login.component.html -->
+
+<div class="bg-cover bg-center bg-no-repeat h-screen w-screen overflow-hidden" style="background-image: url('/assets/login/loginimg.jpg');">
+  <!-- Navbar -->
+  <nav class="bg-blue-900 p-4">
+    <div class="container mx-auto flex justify-between items-center">
+      <div class="flex items-center">
+        <img src="/assets/Mainlogo/IMSlogo.png" alt="StockEasy Logo" class="h-8 w-8 mr-2" />
+        <span class="text-white text-xl font-bold">StockEasy</span>
+      </div>
+      <a [routerLink]="['/login']" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500">Back</a>
+    </div>
+  </nav>
+
+  <div class="flex justify-center items-center h-[calc(100vh-64px)] bg-black/30">
+    <div class="bg-black/50 backdrop-blur-lg p-8 rounded-xl shadow-lg w-96">
+      <h2 class="text-white text-2xl font-semibold text-center">Forgot Password</h2>
+      <h3 class="text-white text-md text-center mt-2 mb-6">Please enter your email to reset the password</h3>
+
+      <!-- Forgot Password Form -->
+      <form id="forgotPasswordForm" class="space-y-4">
+        <!-- Email Input -->
+        <div>
+          <input type="text" id="email" name="email" placeholder="UserId / Email id" required
+            class="w-full px-4 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <p id="emailError" class="text-red-500 text-sm hidden mt-1">Enter a valid email address.</p>
+        </div>
+
+        <!-- Reset Password Button -->
+        <button type="submit" id="resetButton"
+          class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 transition">
+          Reset Password
+        </button>
+      </form>
+
+      <!-- Back to Login Link -->
+      <p class="text-white text-sm text-center mt-4">
+        Remember your password?
+        <a [routerLink]="['/login']" class="text-blue-300 hover:underline">Login now</a>
+      </p>
+    </div>
+
+</div>
+
+</div>
+

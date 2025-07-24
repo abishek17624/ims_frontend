@@ -1,0 +1,149 @@
+<div class="bg-gray-100 min-h-screen p-4">
+  <div *ngIf="showToast"
+       [class]="'fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 animate-fade-in ' +
+       (toastType === 'success' ? 'bg-green-500' : toastType === 'error' ? 'bg-red-500' : 'bg-yellow-500')">
+    {{ toastMessage }}
+  </div>
+
+  <div *ngIf="showConfirmationDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h3 class="text-xl font-bold mb-4">Confirm Password Update</h3>
+      <p class="mb-6">Are you sure you want to update your password?</p>
+      <div class="flex justify-end gap-4">
+        <button (click)="cancelUpdate()" class="px-4 py-2 bg-gray-300 rounded-lg">No</button>
+        <button (click)="confirmUpdate()" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ml-87 mr-87 mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+    <div class="p-6 border-b">
+      <h1 class="text-3xl font-bold text-center">Supplier Credential Settings</h1>
+    </div>
+
+    <div class="flex justify-center p-4 border-b">
+      <button (click)="showSection('theme')"
+              [class]="'px-4 py-2 rounded-lg font-semibold mx-2 ' +
+              (activeTab === 'theme' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-700')">
+        Theme
+      </button>
+      <button (click)="showSection('credential')"
+              [class]="'px-4 py-2 rounded-lg font-semibold mx-2 ' +
+              (activeTab === 'credential' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-700')">
+        Credential
+      </button>
+    </div>
+
+    <div class="p-6">
+      <div *ngIf="activeTab === 'theme'" class="fade-in">
+        <h2 class="text-2xl font-bold mb-6">Theme Settings</h2>
+        <div class="space-y-6">
+          <div>
+            <h3 class="text-lg font-semibold mb-4">Theme Preference</h3>
+            <div class="flex flex-col sm:flex-row gap-6">
+              <div class="flex items-center">
+                <input type="radio" id="lightTheme" name="theme" value="light" [(ngModel)]="themePreference" class="mr-2">
+                <label for="lightTheme" class="flex items-center"><i class="fas fa-sun mr-2"></i> Light Mode</label>
+              </div>
+              <div class="flex items-center">
+                <input type="radio" id="darkTheme" name="theme" value="dark" [(ngModel)]="themePreference" class="mr-2">
+                <label for="darkTheme" class="flex items-center"><i class="fas fa-moon mr-2"></i> Dark Mode</label>
+              </div>
+              <div class="flex items-center">
+                <input type="radio" id="systemTheme" name="theme" value="system" [(ngModel)]="themePreference" class="mr-2">
+                <label for="systemTheme" class="flex items-center"><i class="fas fa-desktop mr-2"></i> System Default</label>
+              </div>
+            </div>
+          </div>
+          <button (click)="saveThemeSettings()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg w-full transition">
+            Save Theme Settings
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="activeTab === 'credential'" class="fade-in">
+        <h2 class="text-2xl font-bold mb-6">Supplier Credentials</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block text-lg font-semibold mb-2">First Name:</label>
+            <input type="text" [(ngModel)]="currentFirstName" class="border p-3 rounded-lg w-full bg-gray-100" disabled>
+          </div>
+          <div>
+            <label class="block text-lg font-semibold mb-2">Last Name:</label>
+            <input type="text" [(ngModel)]="currentLastName" class="border p-3 rounded-lg w-full bg-gray-100" disabled>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-lg font-semibold mb-2">Email:</label>
+          <input type="email" [(ngModel)]="currentEmail" class="border p-3 rounded-lg w-full bg-gray-100" disabled>
+        </div>
+
+        <div *ngIf="isEditingPassword" class="space-y-6">
+          <div class="w-full">
+            <label class="block text-lg font-semibold mb-2">Current Password:</label>
+            <div class="relative">
+              <input #currentPasswordInput type="password" [(ngModel)]="currentPassword"
+                     class="w-full p-3 border rounded-lg" placeholder="Enter current password">
+              <button (click)="togglePasswordVisibility(currentPasswordInput)" class="absolute right-3 top-3 text-gray-500">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="w-full">
+            <label class="block text-lg font-semibold mb-2">New Password:</label>
+            <div class="relative">
+              <input #newPasswordInput type="password" [(ngModel)]="newPassword" (input)="checkPasswordStrength()"
+                     class="w-full p-3 border rounded-lg" placeholder="Enter new password">
+              <button (click)="togglePasswordVisibility(newPasswordInput)" class="absolute right-3 top-3 text-gray-500">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="mt-2">
+              <div class="flex gap-1 mb-1">
+                <div class="h-1 flex-1 rounded" [class.bg-red-500]="passwordStrength >= 1" [class.bg-gray-200]="passwordStrength < 1"></div>
+                <div class="h-1 flex-1 rounded" [class.bg-yellow-500]="passwordStrength >= 2" [class.bg-gray-200]="passwordStrength < 2"></div>
+                <div class="h-1 flex-1 rounded" [class.bg-blue-500]="passwordStrength >= 3" [class.bg-gray-200]="passwordStrength < 3"></div>
+                <div class="h-1 flex-1 rounded" [class.bg-green-500]="passwordStrength >= 4" [class.bg-gray-200]="passwordStrength < 4"></div>
+              </div>
+              <p class="text-sm text-gray-500">Password strength: {{ passwordStrengthText }}</p>
+            </div>
+          </div>
+
+          <div class="w-full">
+            <label class="block text-lg font-semibold mb-2">Confirm New Password:</label>
+            <div class="relative">
+              <input #confirmPasswordInput type="password" [(ngModel)]="confirmPassword"
+                     class="w-full p-3 border rounded-lg" placeholder="Confirm new password">
+              <button (click)="togglePasswordVisibility(confirmPasswordInput)" class="absolute right-3 top-3 text-gray-500">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col space-y-4 md:space-y-0 md:flex-row md:space-x-4 mt-4">
+          <button *ngIf="!isEditingPassword"
+                  (click)="enablePasswordEditing()"
+                  class="w-full md:w-auto px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition">
+            Edit Password
+          </button>
+
+          <button *ngIf="isEditingPassword"
+                  (click)="validateBeforeUpdate()"
+                  class="w-full px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg transition">
+            Update Credentials
+          </button>
+
+          <button *ngIf="isEditingPassword"
+                  (click)="cancelEdit()"
+                  class="w-full px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

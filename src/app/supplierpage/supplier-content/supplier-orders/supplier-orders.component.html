@@ -1,0 +1,292 @@
+<!-- Main Content -->
+<main class="p-5 w-[1200px] ml-3 mr-9 overflow-y-auto bg-gray-50">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-gray-800">
+      <i class="fas fa-clipboard-list mr-2 text-blue-500"></i>Order Management
+    </h1>
+    <div class="flex space-x-2">
+      <button (click)="downloadCSV()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition flex items-center">
+        <i class="fas fa-download mr-2"></i>Export
+      </button>
+      <button (click)="refreshOrders()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition flex items-center">
+        <i class="fas fa-sync-alt mr-2"></i>Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-7 mb-6">
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-gray-500 text-sm">Total Orders</p>
+          <h3 class="text-xl font-bold text-gray-800">{{ totalOrders }}</h3>
+          <p class="text-xs text-gray-500">This month</p>
+        </div>
+        <div class="bg-blue-100 p-2 rounded-full">
+          <i class="fas fa-shopping-cart text-blue-500"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-gray-500 text-sm">Orders Accepted</p>
+          <h3 class="text-xl font-bold text-green-600">{{ acceptedCount }}</h3>
+          <p class="text-xs text-gray-500">{{ totalOrders > 0 ? (acceptedCount / totalOrders * 100).toFixed(0) + '% acceptance rate' : '0%' }}</p>
+        </div>
+        <div class="bg-green-100 p-2 rounded-full">
+          <i class="fas fa-check-circle text-green-500"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-gray-500 text-sm">Orders Pending</p>
+          <h3 class="text-xl font-bold text-yellow-600">{{ pendingCount }}</h3>
+          <p class="text-xs text-gray-500">{{ newTodayOrders }} new today</p>
+        </div>
+        <div class="bg-yellow-100 p-2 rounded-full">
+          <i class="fas fa-clock text-yellow-500"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-8 items-end">
+      <div>
+        <label class="block text-gray-700 text-sm font-medium mb-1">From Date</label>
+        <input type="date" [(ngModel)]="fromDate" class="w-full border border-gray-300 p-2 rounded-md text-sm">
+      </div>
+      <div>
+        <label class="block text-gray-700 text-sm font-medium mb-1">To Date</label>
+        <input type="date" [(ngModel)]="toDate" class="w-full border border-gray-300 p-2 rounded-md text-sm">
+      </div>
+      <div>
+        <label class="block text-gray-700 text-sm font-medium mb-1">Status</label>
+        <select [(ngModel)]="statusFilter" class="w-full border border-gray-300 p-2 rounded-md text-sm">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="returned">Returned</option>
+        </select>
+      </div>
+      <button (click)="filterOrders()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">
+        Filter
+      </button>
+      <button (click)="resetFilters()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm">
+        Reset
+      </button>
+    </div>
+  </div>
+
+  <!-- Orders Table -->
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="table-fixed w-full text-sm">
+        <thead class="bg-gray-100 text-gray-700">
+          <tr class="border-b border-gray-200">
+            <th class="p-3 font-medium text-left w-[100px]">Order ID</th>
+            <th class="p-3 font-medium text-left w-[200px]">Product</th>
+            <th class="p-3 font-medium text-left w-[120px]">Quantity</th>
+            <th class="p-3 font-medium text-left w-[120px]">Value</th>
+            <th class="p-3 font-medium text-left w-[130px]">Order Date</th>
+            <th class="p-3 font-medium text-left w-[150px]">Delivery Date</th>
+            <th class="p-3 font-medium text-left w-[110px]">Status</th>
+            <th class="p-3 font-medium text-right w-[170px]">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let order of paginatedOrders" class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="p-3 text-blue-600 whitespace-nowrap">#{{ order.id }}</td>
+            <td class="p-3">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-md flex items-center justify-center mr-2">
+                  <i class="fas fa-box text-blue-500 text-sm"></i>
+                </div>
+                <div class="min-w-0">
+                  <div class="font-medium truncate">{{ order.productName }}</div>
+                  <div class="text-gray-500 text-xs truncate">{{ order.productCode }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="p-3 whitespace-nowrap">{{ order.quantity }} {{ order.unit }}</td>
+            <td class="p-3 whitespace-nowrap">{{ order.value }}</td>
+            <td class="p-3 whitespace-nowrap">{{ order.orderDate }}</td>
+            <td class="p-3 whitespace-nowrap">{{ order.deliveryDate }}</td>
+            <td class="p-3">
+              <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold {{ getStatusClass(order.status) }}">
+                {{ order.status }}
+              </span>
+            </td>
+            <td class="p-3 text-right space-x-1">
+              <ng-container *ngIf="order.status === 'Pending'; else nonPendingActions">
+                <button (click)="acceptOrder(order.id)" class="action-btn bg-green-100 text-green-800 hover:bg-green-200 px-2 py-1 rounded text-xs">Accept</button>
+                <button (click)="openEditModal(order)" class="action-btn bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-1 rounded text-xs">Edit</button>
+              </ng-container>
+              <ng-template #nonPendingActions>
+                <ng-container *ngIf="order.status === 'Confirmed'; else viewOnly">
+                  <button (click)="shipOrder(order.id)" class="action-btn bg-purple-100 text-purple-800 hover:bg-purple-200 px-2 py-1 rounded text-xs">Ship</button>
+                  <button (click)="openEditModal(order)" class="action-btn bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-1 rounded text-xs">Edit</button>
+                </ng-container>
+                <ng-template #viewOnly>
+                  <button (click)="openViewModal(order)" class="action-btn bg-gray-100 text-gray-800 hover:bg-gray-200 px-2 py-1 rounded text-xs">View</button>
+                </ng-template>
+              </ng-template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+      <div class="text-sm text-gray-700">
+        Showing <span class="font-medium">{{ showingFrom }}</span> to <span class="font-medium">{{ showingTo }}</span> of <span class="font-medium">{{ filteredOrders.length }}</span> orders
+      </div>
+      <div class="flex space-x-1">
+        <button (click)="changePage(currentPage - 1)" 
+          class="px-3 py-1 border rounded text-sm text-gray-700 hover:bg-gray-100" 
+          [disabled]="currentPage === 1" [class.disabled]="currentPage === 1">
+          Previous
+        </button>
+        
+        <button *ngFor="let page of [].constructor(totalPages); let i = index" 
+          (click)="changePage(i + 1)" 
+          class="px-3 py-1 border rounded text-sm" 
+          [class.bg-blue-500]="currentPage === i + 1" 
+          [class.text-white]="currentPage === i + 1" 
+          [class.hover:bg-blue-600]="currentPage === i + 1" 
+          [class.text-gray-700]="currentPage !== i + 1" 
+          [class.hover:bg-gray-100]="currentPage !== i + 1">
+          {{ i + 1 }}
+        </button>
+        
+        <button (click)="changePage(currentPage + 1)" 
+          class="px-3 py-1 border rounded text-sm text-gray-700 hover:bg-gray-100" 
+          [disabled]="currentPage === totalPages" [class.disabled]="currentPage === totalPages">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div *ngIf="showEditModal" class="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md shadow-lg">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Edit Order Details</h3>
+        <button (click)="showEditModal = false" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-medium mb-1">Product</label>
+        <input type="text" [(ngModel)]="editProduct" class="w-full border border-gray-300 p-2 rounded-md bg-gray-100 text-sm" readonly>
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-medium mb-1">Order ID</label>
+        <input type="text" [(ngModel)]="editOrderId" class="w-full border border-gray-300 p-2 rounded-md bg-gray-100 text-sm" readonly>
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-medium mb-1">New Delivery Date</label>
+        <input type="date" [(ngModel)]="editDate" class="w-full border border-gray-300 p-2 rounded-md text-sm">
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700 text-sm font-medium mb-1">Comments</label>
+        <textarea [(ngModel)]="editNotes" class="w-full border border-gray-300 p-2 rounded-md text-sm" rows="3"></textarea>
+      </div>
+      <div class="flex justify-end space-x-2">
+        <button (click)="showEditModal = false" class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-sm">
+          Cancel
+        </button>
+        <button (click)="saveEdit()" class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Modal -->
+  <div *ngIf="showViewModal" class="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-lg shadow-lg">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Order Details - #{{selectedOrder?.id}}</h3>
+        <button (click)="showViewModal = false" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="space-y-4 text-sm" *ngIf="selectedOrder">
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Product Name</div>
+          <div class="col-span-2">{{ selectedOrder.productName }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Product Code</div>
+          <div class="col-span-2">{{ selectedOrder.productCode }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Quantity</div>
+          <div class="col-span-2">{{ selectedOrder.quantity }} {{ selectedOrder.unit }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Order Value</div>
+          <div class="col-span-2">{{ selectedOrder.value }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Order Date</div>
+          <div class="col-span-2">{{ selectedOrder.orderDate }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Delivery Date</div>
+          <div class="col-span-2">{{ selectedOrder.deliveryDate }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Delivery Status</div>
+          <div class="col-span-2">
+            <span class="{{ getStatusClass(selectedOrder.deliveryStatus) }} px-2 py-1 rounded-full text-xs">
+              {{ selectedOrder.deliveryStatus }}
+            </span>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-gray-700 font-medium">Order Status</div>
+          <div class="col-span-2">
+            <span class="{{ getStatusClass(selectedOrder.status) }} px-2 py-1 rounded-full text-xs">
+              {{ selectedOrder.status }}
+            </span>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4" *ngIf="selectedOrder.supplierNotes">
+          <div class="text-gray-700 font-medium">Supplier Notes</div>
+          <div class="col-span-2">{{ selectedOrder.supplierNotes }}</div>
+        </div>
+      </div>
+      <div class="flex justify-end mt-6">
+        <button (click)="showViewModal = false" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div *ngIf="showToast" class="fixed top-4 right-4 p-3 rounded-md shadow-lg text-white text-sm flex items-center" 
+       [class.bg-green-500]="toastType === 'success'" 
+       [class.bg-red-500]="toastType === 'error'" 
+       [class.bg-blue-500]="toastType === 'info'">
+    <i class="fas mr-2" 
+       [class.fa-check-circle]="toastType === 'success'"
+       [class.fa-exclamation-circle]="toastType === 'error'"
+       [class.fa-info-circle]="toastType === 'info'"></i>
+    {{ toastMessage }}
+  </div>
+</main>

@@ -1,0 +1,213 @@
+<div class="html-container" >
+
+  <!-- landing-page.component.html -->
+  <!-- Hero Section -->
+  <div class="relative w-full h-screen overflow-hidden">
+    <img class="w-full h-full object-cover blur-[2px]" src="assets/landing/home.jpg" alt="Warehouse">
+    <div class="absolute inset-0 bg-black opacity-60"></div>
+
+    <!-- Content on Image -->
+    <div id="home" class="absolute inset-0 flex flex-col items-center justify-center text-white px-6">
+      <h1 class="text-4xl md:text-6xl font-bold mb-4 font-kalam">Product Purchase & Inventory<br><span class="mx-45"> Management</span></h1>
+      <p class="text-lg md:text-2xl mb-8 text-center font-kalam">
+        A smart system for inventory tracking and automated purchases, <br/>
+        providing real-time insights, reducing errors, optimizing procurement, and improving efficiency.
+      </p>
+      <div class="flex space-x-4">
+        <button class="bg-white text-black px-6 py-3 rounded-full font-bold hover:bg-gray-200 transition-colors duration-200">
+          <a [routerLink]="['/signup']">Create your Account</a>
+        </button>
+        <button class="bg-white text-black px-6 py-3 rounded-full font-bold hover:bg-gray-200 transition-colors duration-200">
+          <a routerLink="/demo">Free Demo</a>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About us -->
+  <section id="about" class="py-10 bg-white">
+    <div class="container mx-auto px-8">
+      <div class="flex flex-col md:flex-row items-center justify-between">
+        <!-- Text Content -->
+        <div class="md:w-1/2 mb-6 md:mb-0">
+          <h2 class="text-4xl text-gray-800 font-bold mb-6" style="font-family: 'Kalam', cursive;">About Us</h2>
+          <p class="text-xl text-gray-700 leading-relaxed mb-6">
+            Welcome to our Inventory Management System, a streamlined solution designed to simplify inventory control. Our platform helps businesses efficiently manage stock, orders, suppliers, and sales with real-time updates and analytics.
+            With features like low-stock alerts, order tracking, and comprehensive reports, we empower businesses to make informed decisions, enhance productivity, and drive growth. <br>
+            Experience seamless inventory management with us!
+          </p>
+          <button class="px-6 py-3 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-colors duration-200">
+            Read More
+          </button>
+        </div>
+      
+        <!-- Image Content -->
+        <div class="md:w-1/2 flex justify-center">
+          <img src="assets/landing/aboutus.png" alt="" class="w-3/4 md:w-full h-[600px] object-contain hover:scale-105 transition-transform duration-200">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="py-10 px-30 bg-gray-50">
+    <div class="container mx-auto px-8">
+      <h2 class="text-4xl text-gray-800 font-bold text-center mb-2 font-kalam">Leading Inventory Management Software in India</h2>
+      <p class="text-2xl text-center text-green-700 mb-12">StockEasy Maximizing the Value of Your Inventory</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-primary text-white p-6 text-center rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <p class="text-lg">Over</p>
+          <h3 class="text-3xl font-bold">2000 of</h3>
+          <p class="text-lg">Products Tracked Daily</p>
+        </div>
+        <div class="bg-primary text-white p-6 text-center rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <p class="text-lg">Over</p>
+          <h3 class="text-3xl font-bold">4.5 lakhs of</h3>
+          <p class="text-lg">Invoiced Inventory Monthly</p>
+        </div>
+        <div class="bg-primary text-white p-6 text-center rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <p class="text-lg">Over</p>
+          <h3 class="text-3xl font-bold">200 +</h3>
+          <p class="text-lg">Login Users Last Month</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="products" class="py-10 bg-white">
+    <div class="container mx-auto px-8">
+      <h2 class="text-4xl font-bold text-gray-800 mb-2 font-kalam text-center">Smart Product Management</h2>
+      <p class="text-2xl text-green-800 mb-12 text-center">Effortless Product Tracking & Procurement Manage your products with ease using our intelligent system. Keep track of stock levels, automate purchases, and ensure smooth operations.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-10 py-3 px-70">
+        <div class="bg-primary text-white p-6 text-center rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <p class="text-lg">Over 40+ Products</p>
+        </div>
+        <div class="bg-primary text-white p-6 text-center rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <p class="text-lg">Category of Product</p>
+        </div>
+        <div class="bg-primary text-white p-6 text-center rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <p class="text-lg">Daily Stock Updates</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-12">
+        <div class="relative rounded-lg overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <img src="assets/landing/feature4.jpg" alt="Dairy Products" class="w-full h-full object-cover hover:scale-105 transition-transform duration-200">
+          <div class="absolute bottom-1 left-1 bg-white text-black px-4 py-2 rounded-lg hover:-translate-y-1 hover:scale-110 transition-all duration-200">Dairy Products</div>
+        </div>
+
+        <div class="relative rounded-lg overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <img src="assets/landing/feature3.jpg" alt="Vegetables" class="w-full h-full object-cover hover:scale-105 transition-transform duration-200">
+          <div class="absolute bottom-1 left-1 bg-white text-black px-4 py-2 rounded-lg hover:-translate-y-1 hover:scale-110 transition-all duration-200">
+            Vegetables
+          </div>
+        </div>
+
+        <div class="relative rounded-lg overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <img src="assets/landing/feature1.jpg" alt="Electronics" class="w-full h-full object-cover hover:scale-105 transition-transform duration-200">
+          <div class="absolute bottom-1 left-1 bg-white text-black px-4 py-2 rounded-lg hover:-translate-y-1 hover:scale-110 transition-all duration-200">Electronics</div>
+        </div>
+
+        <div class="relative rounded-lg overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <img src="assets/landing/feature2.jpg" alt="Cool Drinks" class="w-full h-full object-cover hover:scale-105 transition-transform duration-200">
+          <div class="absolute bottom-1 left-1 bg-white text-black px-4 py-2 rounded-lg hover:-translate-y-1 hover:scale-110 transition-all duration-200">Cool Drinks</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Company Banner -->
+  <section class="py-10 bg-gray-50">
+    <div class="container mx-auto px-8">
+      <h2 class="text-4xl font-kalam font-bold text-center text-gray-800 mb-2">Proudly Serving these Brands</h2>
+      <p class="text-2xl text-center text-green-700 mb-12">Trusted by Businesses for Reliable Inventory Control.</p>
+      <div class="flex flex-wrap justify-center gap-20">
+        <img src="assets/landing/banner1.jpeg" alt="DMart" class="w-40 h-25 object-contain hover:scale-110 transition-transform duration-200">
+        <img src="assets/landing/banner2.png" alt="Reliance Digital" class="w-40 h-25 object-contain hover:scale-110 transition-transform duration-200">
+        <img src="assets/landing/banner3.png" alt="My Mart" class="w-40 h-25 object-contain hover:scale-110 transition-transform duration-200">
+        <img src="assets/landing/banner4.png" alt="Nilgiris" class="w-40 h-25 object-contain hover:scale-110 transition-transform duration-200">
+      </div>
+    </div>
+  </section>
+
+  <!-- Modern Features -->
+  <section id="features" class="py-12 bg-white">
+    <div class="container mx-auto px-8">
+      <h1 class="text-4xl font-kalam font-semibold text-center text-gray-800 mb-2">All the features you'll ever need to manage your business</h1>
+      <p class="text-2xl text-center text-green-700 mb-12">Give us a try, There's nothing to install, No training manuals needed, No commitments.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 py-3">
+        <div class="bg-white shadow-lg rounded-xl p-6 border border-gray-200 flex items-center relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-100">
+          <div class="absolute right-4 bottom-1">
+            <img src="assets/landing/IM.png" alt="Inventory Management" class="w-32 h-28 object-contain hover:scale-105 transition-transform duration-200">
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold mb-2">Inventory Management</h2>
+            <p class="text-lg font-kalam">The easiest and most beautiful inventory you've ever seen.</p>
+          </div>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-xl p-6 border border-gray-200 flex items-center relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <div class="absolute right-4 bottom-1">
+            <img src="assets/landing/IE.png" alt="Inventory Management" class="w-32 h-28 object-contain hover:scale-105 transition-transform duration-200">
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold mb-2">Invoices & Estimates</h2>
+            <p class="text-lg font-kalam">Create estimates and invoices then let StockEasy do the rest.</p>
+          </div>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-xl p-6 border border-gray-200 flex items-center relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <div class="absolute right-4 bottom-1">
+            <img src="assets/landing/RG.png" alt="Inventory Management" class="w-32 h-28 object-contain hover:scale-105 transition-transform duration-200">
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold mb-2">Report Generating</h2>
+            <p class="text-lg font-kalam">Extremely detailed reports for your inventory, sales, and services.</p>
+          </div>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-xl p-6 border border-gray-200 flex items-center relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <div class="absolute right-4 bottom-1">
+            <img src="assets/landing/PR.png" alt="Inventory Management" class="w-32 h-28 object-contain hover:scale-105 transition-transform duration-200">
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold mb-2">Purchase Orders</h2>
+            <p class="text-lg font-kalam">Replenish stock levels, track when they should arrive.</p>
+          </div>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-xl p-6 border border-gray-200 flex items-center relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <div class="absolute right-4 bottom-1">
+            <img src="assets/landing/IV.png" alt="Inventory Management" class="w-32 h-28 object-contain hover:scale-105 transition-transform duration-200">
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold mb-2">Item Variation</h2>
+            <p class="text-lg font-kalam">Organize inventory items using custom attributes.</p>
+          </div>
+        </div>
+
+        <div class="bg-white shadow-lg rounded-xl p-6 border border-gray-200 flex items-center relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+          <div class="absolute right-4 bottom-1">
+            <img src="assets/landing/UP.png" alt="Inventory Management" class="w-32 h-28 object-contain hover:scale-105 transition-transform duration-200">
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold mb-2">User Permission</h2>
+            <p class="text-lg font-kalam">Finely tune what each of your team members can see and do.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Back to top button -->
+  <button *ngIf="showBackToTop" (click)="scrollToTop()" 
+          class="fixed bottom-4 right-4 z-50 bg-blue-700 text-white p-3 rounded-full shadow-lg hover:bg-gray-600 transition-colors duration-200">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+    </svg>
+  </button>
+</div>

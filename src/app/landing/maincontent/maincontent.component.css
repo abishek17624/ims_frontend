@@ -1,0 +1,45 @@
+/* @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
+
+        .font-kalam {
+            font-family: 'Kalam', cursive;
+        } */
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Adjust section padding to account for fixed navbar */
+        section {
+            scroll-margin-top: 80px;
+        }
+
+        /* Animation classes */
+        .fade-in {
+            animation: fadeIn 1s ease-in;
+        }
+        
+        .slide-up {
+            animation: slideUp 1s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Navbar animation */
+        .nav-scroll {
+            background-color: rgba(0, 0, 0, 0.9) !important;
+            transition: all 0.3s ease;
+        }

@@ -1,0 +1,357 @@
+<div class="bg-gray-100 min-h-screen w-[1220px]">
+  <!-- Toast Notification -->
+  <div *ngIf="showToast" [class]="'fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 animate-fade-in ' + 
+    (toastType === 'success' ? 'bg-green-500' : toastType === 'error' ? 'bg-red-500' : 'bg-yellow-500')">
+    <div class="flex items-center">
+      <i [class]="toastType === 'success' ? 'fas fa-check-circle mr-2' : 
+                 toastType === 'error' ? 'fas fa-exclamation-circle mr-2' : 
+                 'fas fa-exclamation-triangle mr-2'"></i>
+      <span>{{ toastMessage }}</span>
+      <button (click)="showToast = false" class="ml-4 hover:opacity-80">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="p-6 flex-1 overflow-y-auto">
+    <!-- Sales Persons List -->
+    <div *ngIf="currentView === 'list'" class="fade-in">
+      <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+        <h2 class="text-3xl font-bold mb-2 text-gray-800">Sales Team Management</h2>
+        <p class="text-gray-600">View and manage your sales team members</p>
+      </div>
+      
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div class="relative w-full md:w-1/3">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fas fa-search text-gray-400"></i>
+          </div>
+          <input type="text" [(ngModel)]="searchTerm" (input)="filterSalesPersons()" placeholder="Search sales persons..." 
+                class="border p-3 pl-10 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
+        </div>
+        
+        <div class="flex gap-4">
+          <div class="relative">
+            <button (click)="showAddForm()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition flex items-center shadow-md">
+              <i class="fas fa-plus mr-2"></i>Add Sales Person
+            </button>
+          </div>
+          
+          <div class="relative">
+            <button (click)="showDownloadOptions = !showDownloadOptions" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition flex items-center shadow-md">
+              <i class="fas fa-download mr-2"></i>Download
+            </button>
+            <div *ngIf="showDownloadOptions" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+              <button (click)="downloadSalesPersons('excel')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 flex items-center">
+                <i class="fas fa-file-excel mr-2 text-green-600"></i>Excel
+              </button>
+              <button (click)="downloadSalesPersons('json')" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 flex items-center">
+                <i class="fas fa-file-code mr-2 text-blue-600"></i>JSON
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-auto bg-white p-6 shadow-lg rounded-lg">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-gray-100">
+              <th class="p-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition" 
+                  (click)="sortTable(0)">
+                <div class="flex items-center">
+                  Sales ID
+                  <i [class]="sortColumn === 0 ? 
+                             (sortDirection === 1 ? 'fas fa-arrow-up ml-2 text-blue-500' : 'fas fa-arrow-down ml-2 text-blue-500') : 
+                             'fas fa-sort ml-2 text-gray-400'"></i>
+                </div>
+              </th>
+              <th class="p-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition" 
+                  (click)="sortTable(1)">
+                <div class="flex items-center">
+                  Name
+                  <i [class]="sortColumn === 1 ? 
+                             (sortDirection === 1 ? 'fas fa-arrow-up ml-2 text-blue-500' : 'fas fa-arrow-down ml-2 text-blue-500') : 
+                             'fas fa-sort ml-2 text-gray-400'"></i>
+                </div>
+              </th>
+              <th class="p-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition" 
+                  (click)="sortTable(2)">
+                <div class="flex items-center">
+                  Contact
+                  <i [class]="sortColumn === 2 ? 
+                             (sortDirection === 1 ? 'fas fa-arrow-up ml-2 text-blue-500' : 'fas fa-arrow-down ml-2 text-blue-500') : 
+                             'fas fa-sort ml-2 text-gray-400'"></i>
+                </div>
+              </th>
+              <th class="p-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition" 
+                  (click)="sortTable(3)">
+                <div class="flex items-center">
+                  Current Sales
+                  <i [class]="sortColumn === 3 ? 
+                             (sortDirection === 1 ? 'fas fa-arrow-up ml-2 text-blue-500' : 'fas fa-arrow-down ml-2 text-blue-500') : 
+                             'fas fa-sort ml-2 text-gray-400'"></i>
+                </div>
+              </th>
+              <th class="p-4 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 transition" 
+                  (click)="sortTable(4)">
+                <div class="flex items-center">
+                  Performance
+                  <i [class]="sortColumn === 4 ? 
+                             (sortDirection === 1 ? 'fas fa-arrow-up ml-2 text-blue-500' : 'fas fa-arrow-down ml-2 text-blue-500') : 
+                             'fas fa-sort ml-2 text-gray-400'"></i>
+                </div>
+              </th>
+              <th class="p-4 text-left font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let salesPerson of filteredSalesPersons" class="border-b border-gray-200 hover:bg-gray-50 transition">
+              <td class="p-4">{{ salesPerson.id || 'N/A' }}</td>
+              <td class="p-4 font-medium">{{ salesPerson.name || 'N/A' }}</td>
+              <td class="p-4">
+                <div class="flex items-center">
+                  <i class="fas fa-phone-alt mr-2 text-gray-500"></i>
+                  {{ salesPerson.contact || 'N/A' }}
+                </div>
+              </td>
+              <td class="p-4">${{ (salesPerson.currentSales || 0).toFixed(2) }}</td>
+              <td class="p-4">
+                <div class="flex items-center">
+                  <div class="w-24 bg-gray-200 rounded-full h-2.5 mr-2">
+                    <div class="bg-blue-600 h-2.5 rounded-full" 
+                         [ngClass]="{
+                           'bg-green-500': (salesPerson.performanceRating || 0) >= 100,
+                           'bg-yellow-500': (salesPerson.performanceRating || 0) >= 80 && (salesPerson.performanceRating || 0) < 100,
+                           'bg-red-500': (salesPerson.performanceRating || 0) < 80
+                         }"
+                         [style.width]="(salesPerson.performanceRating || 0) + '%'"></div>
+                  </div>
+                  <span>{{ salesPerson.performanceRating || 0 }}%</span>
+                </div>
+              </td>
+              <td class="p-4">
+                <div class="flex gap-2">
+                  <button (click)="showViewForm(salesPerson)" 
+                          class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded-lg transition flex items-center text-sm">
+                    <i class="fas fa-eye mr-1"></i> View
+                  </button>
+                  <button (click)="editSalesPerson(salesPerson)" 
+                          class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded-lg transition flex items-center text-sm">
+                    <i class="fas fa-edit mr-1"></i> Edit
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="filteredSalesPersons.length === 0">
+              <td colspan="6" class="text-center p-8 text-gray-500">
+                <i class="fas fa-user-times text-4xl mb-2 text-gray-300"></i>
+                <p class="text-lg">No sales persons found</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- View Sales Person Form -->
+    <div *ngIf="currentView === 'view' && selectedSalesPerson" class="bg-white p-8 shadow-lg rounded-xl max-w-5xl mx-auto fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-3xl font-bold text-gray-800">Sales Person Details</h2>
+          <p class="text-gray-600">Sales ID: {{ selectedSalesPerson.id }}</p>
+        </div>
+        <button (click)="cancelForm()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-2xl"></i>
+        </button>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Basic Information -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold text-gray-700 border-b pb-2">Basic Information</h3>
+          
+          <div>
+            <label class="block text-gray-700 mb-2">Name</label>
+            <div class="p-3 bg-gray-100 rounded-lg">{{ selectedSalesPerson.name || 'N/A' }}</div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-700 mb-2">Email</label>
+            <div class="p-3 bg-gray-100 rounded-lg flex items-center">
+              <i class="fas fa-envelope mr-2 text-gray-500"></i>
+              {{ selectedSalesPerson.email || 'N/A' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-700 mb-2">Sales Target</label>
+            <div class="p-3 bg-gray-100 rounded-lg">
+              ${{ (selectedSalesPerson.salesTarget || 0).toFixed(2) }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Contact & Performance -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold text-gray-700 border-b pb-2">Contact & Performance</h3>
+          
+          <div>
+            <label class="block text-gray-700 mb-2">Contact Number</label>
+            <div class="p-3 bg-gray-100 rounded-lg flex items-center">
+              <i class="fas fa-phone mr-2 text-gray-500"></i>
+              {{ selectedSalesPerson.contact || 'N/A' }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-700 mb-2">Current Sales</label>
+            <div class="p-3 bg-gray-100 rounded-lg">
+              ${{ (selectedSalesPerson.currentSales || 0).toFixed(2) }}
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-gray-700 mb-2">Performance Rating</label>
+            <div class="p-3 bg-gray-100 rounded-lg">
+              <div class="flex items-center">
+                <div class="w-32 bg-gray-200 rounded-full h-2.5 mr-2">
+                  <div class="h-2.5 rounded-full" 
+                       [ngClass]="{
+                         'bg-green-500': (selectedSalesPerson.performanceRating || 0) >= 100,
+                         'bg-yellow-500': (selectedSalesPerson.performanceRating || 0) >= 80 && (selectedSalesPerson.performanceRating || 0) < 100,
+                         'bg-red-500': (selectedSalesPerson.performanceRating || 0) < 80
+                       }"
+                       [style.width]="(selectedSalesPerson.performanceRating || 0) + '%'"></div>
+                </div>
+                <span>{{ selectedSalesPerson.performanceRating || 0 }}%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="selectedSalesPerson.dateAdded">
+            <label class="block text-gray-700 mb-2">Date Added</label>
+            <div class="p-3 bg-gray-100 rounded-lg">
+              {{ selectedSalesPerson.dateAdded | date:'mediumDate' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end mt-8 border-t pt-6 gap-4">
+        <button (click)="cancelForm()" 
+                class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition flex items-center shadow-md">
+          <i class="fas fa-arrow-left mr-2"></i>Back to List
+        </button>
+        <button (click)="editSalesPerson(selectedSalesPerson)" 
+                class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg transition flex items-center shadow-md">
+          <i class="fas fa-edit mr-2"></i>Edit
+        </button>
+        <button (click)="deleteSalesPerson(selectedSalesPerson.id)" 
+                class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition flex items-center shadow-md">
+          <i class="fas fa-trash mr-2"></i>Delete
+        </button>
+      </div>
+    </div>
+
+    <!-- Add/Edit Sales Person Form -->
+    <div *ngIf="(currentView === 'add' || currentView === 'edit') && selectedSalesPerson" class="bg-white p-8 shadow-lg rounded-xl max-w-5xl mx-auto fade-in">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-3xl font-bold text-gray-800">
+            {{ currentView === 'add' ? 'Add New Sales Person' : 'Edit Sales Person' }}
+          </h2>
+          <p class="text-gray-600" *ngIf="currentView === 'edit'">
+            Sales ID: {{ selectedSalesPerson.id }}
+          </p>
+        </div>
+        <button (click)="cancelForm()" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-2xl"></i>
+        </button>
+      </div>
+
+      <form (ngSubmit)="submitForm()" #salesPersonForm="ngForm" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Basic Information -->
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-700 border-b pb-2">Basic Information</h3>
+            
+            <div>
+              <label class="block text-gray-700 mb-2">Name *</label>
+              <input type="text" [(ngModel)]="selectedSalesPerson.name" name="name" required 
+                    class="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    [class.border-red-500]="salesPersonForm.submitted && !selectedSalesPerson.name">
+              <p *ngIf="salesPersonForm.submitted && !selectedSalesPerson.name" class="text-red-500 text-sm mt-1">
+                Name is required
+              </p>
+            </div>
+            
+            <div>
+              <label class="block text-gray-700 mb-2">Email *</label>
+              <input type="email" [(ngModel)]="selectedSalesPerson.email" name="email" required 
+                    class="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    [class.border-red-500]="salesPersonForm.submitted && !selectedSalesPerson.email">
+              <p *ngIf="salesPersonForm.submitted && !selectedSalesPerson.email" class="text-red-500 text-sm mt-1">
+                Email is required
+              </p>
+            </div>
+            
+            <div *ngIf="showPassword">
+              <label class="block text-gray-700 mb-2">Password *</label>
+              <div class="relative">
+                <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="selectedSalesPerson.password" name="password" required 
+                      class="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                      [class.border-red-500]="salesPersonForm.submitted && !selectedSalesPerson.password">
+                <button type="button" (click)="togglePasswordVisibility()" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                  <i [class]="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+              <p *ngIf="salesPersonForm.submitted && !selectedSalesPerson.password" class="text-red-500 text-sm mt-1">
+                Password is required
+              </p>
+            </div>
+          </div>
+          
+          <!-- Contact & Performance -->
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-700 border-b pb-2">Contact & Performance</h3>
+            
+            <div>
+              <label class="block text-gray-700 mb-2">Contact Number *</label>
+              <input type="tel" [(ngModel)]="selectedSalesPerson.contact" name="contact" required 
+                    class="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    [class.border-red-500]="salesPersonForm.submitted && !selectedSalesPerson.contact">
+              <p *ngIf="salesPersonForm.submitted && !selectedSalesPerson.contact" class="text-red-500 text-sm mt-1">
+                Contact number is required
+              </p>
+            </div>
+            
+            <div>
+              <label class="block text-gray-700 mb-2">Sales Target</label>
+              <input type="number" [(ngModel)]="selectedSalesPerson.salesTarget" name="salesTarget" min="0" step="0.01"
+                    class="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+              <label class="block text-gray-700 mb-2">Current Sales</label>
+              <input type="number" [(ngModel)]="selectedSalesPerson.currentSales" name="currentSales" min="0" step="0.01"
+                    class="border p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-8 border-t pt-6 gap-4">
+          <button type="button" (click)="cancelForm()" 
+                  class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition flex items-center shadow-md">
+            <i class="fas fa-times mr-2"></i>Cancel
+          </button>
+          <button type="submit" 
+                  class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition flex items-center shadow-md">
+            <i class="fas fa-save mr-2"></i>{{ currentView === 'add' ? 'Add Sales Person' : 'Save Changes' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

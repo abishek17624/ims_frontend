@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+
+</head>
+<body>
+
+  <nav class="fixed top-0 left-0 right-0 bg-gray-800 text-white p-4 flex justify-between items-center z-50 shadow-md">
+    <div class="flex items-center space-x-2">
+      <img src="/assets/Mainlogo/IMSlogo.png" alt="StockEasy Logo" class="h-8 w-8" />
+      <span class="text-white text-xl font-bold">StockEasy</span>
+    </div>
+
+    <div class="flex items-center space-x-4">
+      <!-- 🔔 Bell Notification -->
+      <div class="relative">
+        <button class="text-white focus:outline-none">
+          <i class="fas fa-bell text-white text-2xl"></i>
+          <span class="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-xs flex items-center justify-center">3</span>
+        </button>
+      </div>
+
+      <!-- 👤 Admin Avatar -->
+      <div class="flex items-center space-x-2">
+        <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+          <span class="text-white font-medium">S</span>
+        </div>
+        <span>Supplier</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Side-bar -->
+
+   <div class="flex h-screen">
+       <app-supplier-sidebar></app-supplier-sidebar>
+        <div class="ml-64 mt-10 p-6 overflow-auto">
+          <router-outlet></router-outlet>
+        </div>
+   </div>
+  
+</body>
+</html>

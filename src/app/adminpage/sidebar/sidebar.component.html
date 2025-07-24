@@ -1,0 +1,30 @@
+<div class="flex h-screen">
+  <!-- Sidebar -->
+  <div class="fixed left-0 top-16 bottom-0 w-64 bg-gray-700 text-white p-4 rounded-r-2xl mx-2 my-2">
+    <div class="h-16 flex items-center px-4">
+      <h1 class="text-xl font-bold">Admin Panel</h1>
+    </div>
+    <ul class="space-y-2 mt-2">
+      <li><a [routerLink]="['/admin/dashboard']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-tachometer-alt mr-3"></i>Dashboard</a></li>
+      <li><a [routerLink]="['/admin/inventory']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-boxes mr-3"></i>Inventory</a></li>
+      <li><a [routerLink]="['/admin/orders']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-clipboard-list mr-3"></i>Orders</a></li>
+      <li><a [routerLink]="['/admin/suppliers']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-truck mr-3"></i>Suppliers</a></li>
+      <li><a [routerLink]="['/admin/sales']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-user-tie mr-3"></i>Sales People</a></li>
+      <li><a [routerLink]="['/admin/reports']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-chart-bar mr-3"></i>Reports</a></li>
+      <li><a [routerLink]="['/admin/content']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-file-alt mr-3"></i>Content</a></li>
+    </ul>
+
+    <ul class="space-y-2 mt-2">
+        <hr class="h-px my-3 bg-white border-1 dark:bg-gray-700">
+      <li><a [routerLink]="['/admin/settings']" routerLinkActive="bg-primary" class="flex items-center p-3 rounded-lg"><i class="fas fa-cog mr-3"></i>Settings</a></li>
+
+      <button class="w-full bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition flex items-center justify-center space-x-2" (click)="confirmLogout()">
+        <i class="fas fa-sign-out-alt"></i>
+      <span>Log Out</span>
+      </button>
+    </ul>
+    
+  </div>
+</div>
+
+

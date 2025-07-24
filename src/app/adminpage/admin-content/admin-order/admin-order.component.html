@@ -1,0 +1,524 @@
+<div class=" p-6 w-full overflow-y-auto">
+    <!-- Success Popup -->
+    <div *ngIf="showSuccessPopup" class="fixed top-4 right-4 z-50">
+        <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            Order #{{newOrderId}} added successfully!
+            <button class="ml-4" (click)="showSuccessPopup = false">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-6 my-5">
+        <h1 class="text-2xl font-bold text-gray-800">
+            <i class="fas fa-clipboard-list mr-2 text-blue-500"></i>Order Management
+        </h1>
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition flex items-center" (click)="openNewOrderModal()">
+            <i class="fas fa-plus mr-2"></i>
+            New Order
+        </button>
+    </div>
+
+    <!-- Order Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <!-- Total Orders Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-gray-500">Total Orders</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1">{{orders.length}}</h3>
+                    <p class="text-sm text-gray-500 mt-2">This month</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <i class="fas fa-shopping-cart text-blue-500 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-green-600">+{{getOrderGrowth()}}% from last month</span>
+                    <span>{{lastMonthOrders}} last month</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-500 h-2 rounded-full" [style.width]="getOrderGrowth() + '%'"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Selling Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-gray-500">Top Selling</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1">{{topSelling.value}}</h3>
+                    <p class="text-sm text-gray-500 mt-2">{{topSelling.product}}</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <i class="fas fa-star text-green-500 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-green-600">+{{topSelling.growth}}% from last month</span>
+                    <span>{{topSelling.lastMonthValue}} last month</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-green-500 h-2 rounded-full" [style.width]="topSelling.growth + '%'"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-gray-500">Low Stock Items</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1">{{lowStockItems}}</h3>
+                    <p class="text-sm text-gray-500 mt-2">Need reordering</p>
+                </div>
+                <div class="bg-yellow-100 p-3 rounded-full">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-red-600">{{criticalItems}} critical items</span>
+                    <span>{{warningItems}} warnings</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-yellow-500 h-2 rounded-full" [style.width]="(criticalItems / lowStockItems * 100) + '%'"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Orders Card -->
+        <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-gray-500">Pending Orders</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1">{{pendingOrders}}</h3>
+                    <p class="text-sm text-gray-500 mt-2">Awaiting confirmation</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <i class="fas fa-clock text-purple-500 text-xl"></i>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-green-600">{{newTodayOrders}} new today</span>
+                    <span>{{pendingOrdersValue}} total value</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-purple-500 h-2 rounded-full" [style.width]="(newTodayOrders / pendingOrders * 100) + '%'"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Management Section -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+        <!-- Filters -->
+        <div class="p-6 border-b">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">From Date</label>
+                        <div class="relative">
+                            <input type="date" [(ngModel)]="fromDate" class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">To Date</label>
+                        <div class="relative">
+                            <input type="date" [(ngModel)]="toDate" class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Status</label>
+                        <div class="relative">
+                            <select [(ngModel)]="selectedStatus" class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none pr-8">
+                                <option value="">All Status</option>
+                                <option value="confirmed">Confirmed</option>
+                                <option value="pending">Pending</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="returned">Returned</option>
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-500 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+                <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition flex items-center w-full md:w-auto justify-center" (click)="exportOrders()">
+                    <i class="fas fa-download mr-2"></i>
+                    Export Orders
+                </button>
+            </div>
+        </div>
+
+        <!-- Order Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="p-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <!-- Order Rows -->
+                    <tr *ngFor="let order of filteredOrders" class="hover:bg-gray-50" [class.bg-gray-50]="order.id === highlightedOrder">
+                        <td class="p-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-blue-600">#{{order.id}}</div>
+                            <div class="text-sm text-gray-500">{{order.orderDate}}</div>
+                        </td>
+                        <td class="p-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-box text-blue-500"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-gray-900">{{order.productName}}</div>
+                                    <div class="text-gray-500 text-sm">{{order.productCode}}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{order.quantity}}</div>
+                            <div class="text-sm text-gray-500">{{order.unit}}</div>
+                        </td>
+                        <td class="p-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{order.value}}</div>
+                        </td>
+                        <td class="p-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{order.supplier}}</div>
+                            <div class="text-sm text-gray-500">{{order.supplierPhone}}</div>
+                        </td>
+                        <td class="p-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{order.deliveryDate}}</div>
+                            <div class="text-sm" [ngClass]="{
+                                'text-red-500': order.deliveryStatus === 'Delayed',
+                                'text-green-500': order.deliveryStatus === 'On time',
+                                'text-yellow-500': order.deliveryStatus === 'Returned'
+                            }">{{order.deliveryStatus}}</div>
+                        </td>
+                        <td class="p-4 whitespace-nowrap">
+                            <span class="status-badge" [ngClass]="{
+                                'bg-red-100 text-red-800 animate-pulse': order.status === 'Delayed',
+                                'bg-green-100 text-green-800': order.status === 'Confirmed',
+                                'bg-yellow-100 text-yellow-800': order.status === 'Returned',
+                                'bg-blue-100 text-blue-800': order.status === 'Pending',
+                                'bg-gray-100 text-gray-800': order.status === 'Cancelled'
+                            }">{{order.status}}</span>
+                        </td>
+                        <td class="p-4 whitespace-nowrap text-sm font-medium">
+                            <button id="midiv" class="text-blue-500 hover:text-blue-700 mr-3" (click)="showInvoice(order)">
+                                <i class="fas fa-file-invoice"></i><div class="hide">ShowInvoice</div>
+                            </button>
+                            <button class="text-blue-500 hover:text-blue-700 mr-3" (click)="viewOrder(order)">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="text-yellow-500 hover:text-yellow-700 mr-3" (click)="editOrder(order)">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="text-red-500 hover:text-red-700" (click)="deleteOrder(order)">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                Showing <span class="font-medium">1</span> to <span class="font-medium">{{filteredOrders.length}}</span> of <span class="font-medium">{{orders.length}}</span> results
+            </div>
+            <div class="flex space-x-2">
+                <button class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50" disabled>
+                    Previous
+                </button>
+                <button class="px-4 py-2 border rounded-lg bg-blue-500 text-white hover:bg-blue-600">
+                    1
+                </button>
+                <button class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">
+                    2
+                </button>
+                <button class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">
+                    3
+                </button>
+                <button class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">
+                    Next
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invoice Modal -->
+<div [class.hidden]="!isInvoiceVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <!-- Invoice Header -->
+        <div class="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-file-invoice mr-2 text-blue-500"></i>Invoice #{{currentOrder?.id || '7535'}}
+            </h2>
+            <div class="flex space-x-3">
+                <button class="text-gray-500 hover:text-blue-500" (click)="printInvoice()">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="text-gray-500 hover:text-blue-500" (click)="downloadInvoice()">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button (click)="closeInvoice()" class="text-gray-500 hover:text-red-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Invoice Content -->
+        <div class="p-6">
+            <!-- Company & Client Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center mb-4">
+                        <img src="/assets/IMSlogo.png" alt="Company Logo" class="h-12 w-12 mr-3">
+                        <div>
+                            <h3 class="text-xl font-bold">StockEasy</h3>
+                            <p class="text-gray-600">Inventory Management System</p>
+                        </div>
+                    </div>
+                    <div class="text-gray-600">
+                        <p>123 Business Street</p>
+                        <p>Bangalore, KA 560001</p>
+                        <p>India</p>
+                        <p class="mt-2">GSTIN: 22ABCDE1234F1Z5</p>
+                    </div>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="font-bold text-lg mb-2">Bill To:</h4>
+                    <div id="clientInfo">
+                        <p class="font-medium">{{currentOrder?.supplier || 'Supplier X'}}</p>
+                        <p class="text-gray-600">{{getSupplierAddress()}}</p>
+                        <p class="text-gray-600">India</p>
+                        <p class="text-gray-600 mt-2">GSTIN: {{getSupplierGstin()}}</p>
+                        <p class="text-gray-600">Phone: {{currentOrder?.supplierPhone || '9876543210'}}</p>
+                        <p class="text-gray-600">Email: {{getSupplierEmail()}}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoice Details -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div>
+                    <p class="text-sm text-gray-500">Invoice Number</p>
+                    <p class="font-medium">#{{currentOrder?.id || '7535'}}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Order Date</p>
+                    <p class="font-medium">{{currentOrder?.orderDate || '12/11/2023'}}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Due Date</p>
+                    <p class="font-medium">{{currentOrder?.deliveryDate || '11/12/2025'}}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Status</p>
+                    <p class="font-medium">
+                        <span class="status-badge" [ngClass]="{
+                            'bg-red-100 text-red-800': currentOrder?.status === 'Delayed',
+                            'bg-green-100 text-green-800': currentOrder?.status === 'Confirmed',
+                            'bg-yellow-100 text-yellow-800': currentOrder?.status === 'Returned'
+                        }">{{currentOrder?.status || 'Delayed'}}</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="mb-8">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="p-3 text-left text-sm font-medium text-gray-700">Item</th>
+                            <th class="p-3 text-left text-sm font-medium text-gray-700">Description</th>
+                            <th class="p-3 text-left text-sm font-medium text-gray-700">Qty</th>
+                            <th class="p-3 text-left text-sm font-medium text-gray-700">Unit Price</th>
+                            <th class="p-3 text-left text-sm font-medium text-gray-700">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="p-3">{{currentOrder?.productCode || 'PRD-001'}}</td>
+                            <td class="p-3">{{currentOrder?.productName || 'Maggi Noodles'}}</td>
+                            <td class="p-3">{{currentOrder?.quantity || '43'}} {{currentOrder?.unit || 'Packets'}}</td>
+                            <td class="p-3">{{getUnitPrice()}}</td>
+                            <td class="p-3">{{currentOrder?.value || '₹4,306.00'}}</td>
+                        </tr>
+                        <tr class="border-b">
+                            <td class="p-3">-</td>
+                            <td class="p-3">Shipping & Handling</td>
+                            <td class="p-3">1</td>
+                            <td class="p-3">₹250.00</td>
+                            <td class="p-3">₹250.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals -->
+            <div class="flex justify-end">
+                <div class="w-full md:w-1/3">
+                    <div class="flex justify-between py-2">
+                        <span class="text-gray-600">Subtotal:</span>
+                        <span class="font-medium">{{getSubtotal()}}</span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span class="text-gray-600">Shipping:</span>
+                        <span class="font-medium">₹250.00</span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span class="text-gray-600">Tax (18%):</span>
+                        <span class="font-medium">{{getTax()}}</span>
+                    </div>
+                    <div class="flex justify-between py-3 border-t border-gray-200 mt-2">
+                        <span class="text-lg font-bold">Total:</span>
+                        <span class="text-lg font-bold">{{getTotal()}}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Info -->
+            <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+                <h4 class="font-bold text-lg mb-2">Payment Information</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Payment Method:</p>
+                        <p class="font-medium">Bank Transfer</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Account Number:</p>
+                        <p class="font-medium">1234567890</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Bank Name:</p>
+                        <p class="font-medium">Business Bank</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">IFSC Code:</p>
+                        <p class="font-medium">BUSI0123456</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mt-6">
+                <h4 class="font-bold text-lg mb-2">Notes</h4>
+                <p class="text-gray-600">Thank you for your business. Please make payment within 15 days of receiving this invoice. For any questions regarding this invoice, please contact our accounts department at accountsstockeasy.com or call +91 9876543210.</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-6 border-t text-center text-gray-500 text-sm">
+            <p>StockEasy - Inventory Management System</p>
+            <p>www.stockeasy.in | contactstockeasy.in | +91 9876543210</p>
+        </div>
+    </div>
+</div>
+
+<!-- New Order Modal -->
+<div [class.hidden]="!isNewOrderModalVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-plus-circle mr-2 text-blue-500"></i>Create New Order
+            </h2>
+            <button (click)="closeNewOrderModal()" class="text-gray-500 hover:text-red-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <form (ngSubmit)="submitNewOrder()" #orderForm="ngForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Product Name</label>
+                        <input type="text" [(ngModel)]="newOrder.productName" name="productName" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Product Code</label>
+                        <input type="text" [(ngModel)]="newOrder.productCode" name="productCode" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Quantity</label>
+                        <input type="number" [(ngModel)]="newOrder.quantity" name="quantity" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Unit</label>
+                        <select [(ngModel)]="newOrder.unit" name="unit" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <option value="Packets">Packets</option>
+                            <option value="Cans">Cans</option>
+                            <option value="Bottles">Bottles</option>
+                            <option value="Boxes">Boxes</option>
+                            <option value="Kg">Kg</option>
+                            <option value="Liters">Liters</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Value (₹)</label>
+                        <input type="text" [(ngModel)]="newOrder.value" name="value" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Supplier</label>
+                        <input type="text" [(ngModel)]="newOrder.supplier" name="supplier" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Supplier Phone</label>
+                        <input type="text" [(ngModel)]="newOrder.supplierPhone" name="supplierPhone" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Order Date</label>
+                        <input type="date" [(ngModel)]="newOrder.orderDate" name="orderDate" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Delivery Date</label>
+                        <input type="date" [(ngModel)]="newOrder.deliveryDate" name="deliveryDate" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    </div>
+                    <!-- <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Status</label>
+                        <select [(ngModel)]="newOrder.status" name="status" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <option value="Pending">Pending</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Returned">Returned</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Delivery Status</label>
+                        <select [(ngModel)]="newOrder.deliveryStatus" name="deliveryStatus" required class="border border-gray-300 p-2 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            <option value="On time">On time</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="Returned">Returned</option>
+                        </select>
+                    </div> -->
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" (click)="closeNewOrderModal()" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" [disabled]="!orderForm.valid" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        Create Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

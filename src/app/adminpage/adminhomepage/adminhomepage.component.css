@@ -1,0 +1,14 @@
+/* Ensure full height for the layout */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Smooth transitions for sidebar links */
+a {
+  transition: background-color 0.2s ease;
+}
+/* 
+/* Font Awesome icons */
+/* @import '~@fortawesome/fontawesome-free/css/all.css'; */ 

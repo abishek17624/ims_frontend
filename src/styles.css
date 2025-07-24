@@ -1,0 +1,30 @@
+/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
+
+@import "tailwindcss";
+
+.font-kalam {
+    font-family: 'Kalam', cursive;
+}
+
+:root {
+    --primary-color: #627898;
+}
+
+/* Apply the color */
+.bg-primary {
+    background-color: var(--primary-color);
+}
+
+.text-primary {
+    color: var(--primary-color);
+}
+
+.border-primary {
+    border-color: var(--primary-color);
+}
+
+/* .bgimg {
+    background-image: url('/assets/login/loginimg.jpg')
+} */
+

@@ -1,0 +1,38 @@
+
+<nav id="navbar" class="bg-black/75 fixed top-0 left-0 w-full z-10 p-4 backdrop-blur-md shadow-lg ">
+    <div class="flex items-center justify-between p-4">
+        <div class="flex items-center">
+            <img src="/assets/Mainlogo/IMSlogo.png" alt="Logo" class="h-10 w-10 mr-2 transition-transform duration-300 hover:scale-110">
+            <span class="text-white font-bold text-2xl">StockEasy</span>
+        </div>
+        <div class="flex-1">
+            <ul class="flex justify-center space-x-20">
+                <li><a (click)="scrollToSection('home')" class="text-white hover:text-gray-300 transition-colors duration-300 cursor-pointer">Home</a></li>
+                <li><a (click)="scrollToSection('about')" class="text-white hover:text-gray-300 transition-colors duration-300 cursor-pointer">About</a></li>
+                <li><a (click)="scrollToSection('products')" class="text-white hover:text-gray-300 transition-colors duration-300 cursor-pointer">Products</a></li>
+                <li><a (click)="scrollToSection('features')" class="text-white hover:text-gray-300 transition-colors duration-300 cursor-pointer">Features</a></li>
+                <li><a (click)="scrollToSection('contact')" class="text-white hover:text-gray-300 transition-colors duration-300 cursor-pointer">Contact Us</a></li>
+            </ul>
+        </div>
+        <div class="flex items-center space-x-4">
+            <!-- Search Icon with Toggle Functionality -->
+            <button (click)="toggleSearch()" class="text-white hover:text-gray-300 transition-colors duration-300">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m-2.8-1.8a7.5 7.5 0 1 1 1.8-1.8l4.35 4.35z" />
+                </svg>
+            </button>
+
+            <!-- Search Bar -->
+            <input #searchInput 
+                   [class.hidden]="!showSearch" 
+                   type="text" 
+                   placeholder="Search..." 
+                   class="bg-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none transition-all duration-300 w-0"
+                   [class.w-48]="showSearch">
+
+            <button class="bg-white text-blue-800 font-semibold px-4 py-2 rounded hover:bg-gray-100 transition-colors duration-300 transform hover:scale-105">
+                <a [routerLink]="['/login']">Login</a>
+            </button>
+        </div>
+    </div>
+</nav>

@@ -1,0 +1,152 @@
+<!-- History View -->
+<div *ngIf="!isEditMode" class="bg-gray-100 p-6 text-[#111827] font-sans">
+  <!-- Header -->
+  <div class="bg-[#3B82F6] text-white p-4 flex justify-between items-center rounded-t-md">
+    <div class="text-xl font-bold">🧾 Billing History</div>
+    <a [routerLink]="['/sales/billingpart']" class="bg-white text-[#3B82F6] px-3 py-1 rounded hover:bg-gray-100"> &lt;- Back</a>
+  </div>
+
+  <!-- Filter Section -->
+  <div class="bg-white shadow p-4 rounded-b-md mb-4">
+    <div class="flex items-center gap-4">
+      <label class="font-semibold">From:</label>
+      <input type="date" [(ngModel)]="fromDate" class="p-1 border border-gray-300 rounded">
+      <label class="font-semibold">To:</label>
+      <input type="date" [(ngModel)]="toDate" class="p-1 border border-gray-300 rounded">
+      <button (click)="filterTransactions()" class="bg-[#3B82F6] hover:bg-[#2563EB] text-white px-4 py-1 rounded">Filter</button>
+    </div>
+  </div>
+
+  <!-- Transaction List Table -->
+  <div class="bg-white shadow rounded p-4">
+    <table class="w-full text-center border">
+      <thead class="bg-[#E5E7EB]">
+        <tr>
+          <th class="p-2 border">Order No</th>
+          <th class="p-2 border">Customer</th>
+          <th class="p-2 border">Date</th>
+          <th class="p-2 border">Total</th>
+          <th class="p-2 border">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="filteredTransactions.length === 0" class="border">
+          <td colspan="5" class="p-4 text-gray-500">No transactions found</td>
+        </tr>
+        <tr *ngFor="let transaction of filteredTransactions" class="border hover:bg-gray-50">
+          <td class="p-2 border">{{transaction.orderNo}}</td>
+          <td class="p-2 border">{{transaction.customerName}}</td>
+          <td class="p-2 border">{{transaction.date}}</td>
+          <td class="p-2 border">₹{{transaction.totalAmount.toFixed(2)}}</td>
+          <td class="p-2 border">
+            <button (click)="editTransaction(transaction.orderNo)" class="text-blue-600 hover:underline">Edit</button>
+            <button (click)="downloadTransaction(transaction.orderNo)" class="text-green-600 hover:underline ml-2">Download</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit View -->
+<div *ngIf="isEditMode && currentTransaction" class="bg-[#F3F4F6] p-6 text-[#111827] font-sans">
+  <!-- Header -->
+  <div class="bg-[#3B82F6] text-white p-4 rounded-t-md">
+    <h1 class="text-xl font-bold">📝 Edit Order #{{currentTransaction.orderNo}}</h1>
+  </div>
+
+  <!-- Customer Info -->
+  <div class="bg-white p-4 mt-2 rounded-b-md shadow">
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="font-semibold">Name <span class="text-red-500">*</span> :</label>
+        <input [(ngModel)]="currentTransaction.customerName" class="ml-2 p-1 rounded border border-gray-300">
+      </div>
+      <div>
+        <label class="font-semibold">Phone No :</label>
+        <input [(ngModel)]="currentTransaction.customerPhone" class="ml-2 p-1 rounded border border-gray-300">
+      </div>
+      <div>
+        <label class="font-semibold">Date <span class="text-red-500">*</span> :</label>
+        <input type="date" [(ngModel)]="currentTransaction.date" class="ml-2 p-1 rounded border border-gray-300">
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Table -->
+  <div class="mt-4">
+    <table class="w-full border text-center bg-white rounded shadow overflow-hidden">
+      <thead class="bg-[#E5E7EB] text-[#111827]">
+        <tr>
+          <th class="border p-2">S.no</th>
+          <th class="border p-2">Category & Product</th>
+          <th class="border p-2">Q.ty</th>
+          <th class="border p-2">Price</th>
+          <th class="border p-2">Discount</th>
+          <th class="border p-2">Total</th>
+          <th class="border p-2">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of currentTransaction.items; let i = index" class="border hover:bg-gray-50">
+          <td class="border p-2">{{i+1}}.</td>
+          <td class="border p-2">
+            <select [(ngModel)]="item.category" (change)="updateProducts(i)" class="w-full p-1 border border-gray-300 rounded">
+              <option value="">Select Category</option>
+              <option *ngFor="let category of categories" [value]="category">{{category}}</option>
+            </select>
+            <select [(ngModel)]="item.productId" (change)="onProductSelect(i)" class="w-full p-1 mt-1 border border-gray-300 rounded">
+              <option value="">Select Product</option>
+              <option *ngFor="let product of getProductsByCategory(item.category)" [value]="product.id">
+                {{product.name}} ({{product.id}})
+              </option>
+            </select>
+          </td>
+          <td class="border p-2">
+            <input type="number" [(ngModel)]="item.quantity" min="1" 
+                   (change)="updateItemTotal(i)"
+                   class="w-16 p-1 text-center border border-gray-300 rounded">
+          </td>
+          <td class="border p-2">
+            <input type="number" [(ngModel)]="item.price" 
+                   (change)="updateItemTotal(i)"
+                   class="w-16 p-1 text-center border border-gray-300 rounded">
+          </td>
+          <td class="border p-2">
+            <input type="number" [(ngModel)]="item.discount" 
+                   (change)="updateItemTotal(i)"
+                   class="w-16 p-1 text-center border border-gray-300 rounded">
+          </td>
+          <td class="border p-2">
+            {{item.total | currency:'INR'}}
+          </td>
+          <td class="border p-2">
+            <button (click)="deleteRow(i)" class="text-red-500 hover:text-red-700 font-bold">🗑️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <button (click)="addRow()" class="mt-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1 rounded">
+      + Add Product
+    </button>
+  </div>
+
+  <!-- Totals -->
+  <div class="flex justify-end mt-6">
+    <div class="bg-white p-4 shadow rounded text-right w-64">
+      <p><strong>Total Product Q.ty:</strong> {{calculateTotalQty()}}</p>
+      <p><strong>Total Amount:</strong> {{calculateTotalAmount() | currency:'INR'}}</p>
+      <div class="flex justify-between mt-4">
+        <button (click)="printReceipt()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded">
+          Print
+        </button>
+        <button (click)="saveChanges()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-1 rounded">
+          Save
+        </button>
+        <button (click)="cancelEdit()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-1 rounded">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

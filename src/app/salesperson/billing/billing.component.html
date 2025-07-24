@@ -1,0 +1,95 @@
+<div class="bg-[#F3F4F6] p-6 text-[#111827] font-sans">
+  <!-- Header -->
+  <div class="bg-[#3B82F6] text-white shadow p-4 flex justify-between items-center rounded-t-md">
+    <div class="flex items-center">
+      <img src="/assets/Mainlogo/IMSlogo.png" alt="StockEasy Logo" class="h-8 w-8 mr-2" />
+      <span class="text-white text-xl font-bold">StockEasy</span>
+    </div>
+    <div class="flex gap-8 font-medium">
+      <a [routerLink]="['/sales/history']" class="hover:underline">History</a>
+      <span>{{ welcomeMessage }}</span>
+      <a [routerLink]="['/login']" class="text-white hover:underline hover:text-red-500" (click)="confirmLogout()">Log Out</a>
+    </div>
+  </div>
+
+  <!-- Customer Info -->
+  <div class="bg-white p-4 mt-2 rounded-b-md shadow">
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="font-semibold">Name <span class="text-red-500">*</span> :</label>
+        <input type="text" [(ngModel)]="customer.name" class="ml-2 p-1 rounded border border-gray-300" (input)="checkRequired()" />
+      </div>
+      <div>
+        <label class="font-semibold">Phone No :</label>
+        <input type="text" [(ngModel)]="customer.phone" class="ml-2 p-1 rounded border border-gray-300" />
+      </div>
+      <div>
+        <label class="font-semibold">Date <span class="text-red-500">*</span> :</label>
+        <input type="date" [(ngModel)]="customer.date" class="ml-2 p-1 rounded border border-gray-300" (input)="checkRequired()" />
+      </div>
+    </div>
+    <div class="mt-2 flex items-center">
+      <label class="font-semibold">Order No:</label>
+      <input type="text" [(ngModel)]="customer.orderNo" readonly class="ml-2 p-1 rounded border border-gray-300 bg-gray-100 text-gray-600" />
+      <button id="addBtn" [disabled]="!checkRequired()" (click)="addRow()" class="ml-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white px-3 py-1 rounded" [class.opacity-50]="!checkRequired()" [class.cursor-not-allowed]="!checkRequired()">
+        Add product +
+      </button>
+    </div>
+  </div>
+
+  <!-- Product Table -->
+  <div class="mt-4">
+    <table class="w-full border text-center bg-white rounded shadow overflow-hidden">
+      <thead class="bg-[#E5E7EB] text-[#111827]">
+        <tr>
+          <th class="border p-2">S.no</th>
+          <th class="border p-2">Category & Product</th>
+          <th class="border p-2">Q.ty</th>
+          <th class="border p-2">Price</th>
+          <th class="border p-2">Discount</th>
+          <th class="border p-2">Total</th>
+          <th class="border p-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="productTable">
+        <tr *ngFor="let row of productRows; let i = index" [attr.data-row]="row.id">
+          <td class="border p-2">{{ (i + 1) < 10 ? '0' + (i + 1) : (i + 1) }}.</td>
+          <td class="border p-2">
+            <select [(ngModel)]="row.category" class="categorySelect w-full p-1 border border-gray-300 rounded" (change)="updateProducts(row)">
+              <option value="">Select Category</option>
+              <option *ngFor="let category of getCategories()" [value]="category">{{ category }}</option>
+            </select>
+            <select [(ngModel)]="row.product" class="productSelect w-full p-1 mt-1 border border-gray-300 rounded" (change)="onProductSelect(row)">
+              <option [ngValue]="null">Select Product</option>
+              <option *ngFor="let product of row.products" [ngValue]="product">{{ product.name }} ({{ product.id }})</option>
+            </select>
+          </td>
+          <td class="border p-2">
+            <input type="number" [(ngModel)]="row.quantity" min="1" class="w-16 p-1 text-center border border-gray-300 rounded" (change)="updateTotal()" />
+          </td>
+          <td class="border p-2">
+            <input type="number" [(ngModel)]="row.price" class="w-16 p-1 text-center border border-gray-300 rounded" (change)="updateTotal()" />
+          </td>
+          <td class="border p-2">
+            <input type="number" [(ngModel)]="row.discount" class="w-16 p-1 text-center border border-gray-300 rounded" (change)="updateTotal()" />
+          </td>
+          <td class="border p-2 totalCell">{{ row.total | currency:'INR' }}</td>
+          <td class="border p-2">
+            <button (click)="deleteRow(i)" class="text-red-500 hover:text-red-700 font-bold">🗑️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Totals -->
+  <div class="flex justify-end mt-6">
+    <div class="bg-white p-4 shadow rounded text-right w-64">
+      <p><strong>Total Product Q.ty:</strong> <span id="totalQty">{{ totalQty }}</span></p>
+      <p><strong>Total Amount:</strong> <span id="totalAmount">{{ totalAmount | currency:'INR' }}</span></p>
+      <!-- Change this in your Totals section -->
+      <button (click)="saveAndPrint()" class="mt-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white px-4 py-1 rounded">
+        Save & Print
+      </button>    </div>
+  </div>
+</div>

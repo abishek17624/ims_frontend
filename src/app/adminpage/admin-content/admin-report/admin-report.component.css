@@ -1,0 +1,44 @@
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.highlight-row:hover {
+  background-color: #f8fafc;
+}
+
+.modal-overlay {
+  backdrop-filter: blur(4px);
+}
+
+.invoice-preview {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #invoiceToPrint, #invoiceToPrint * {
+    visibility: visible;
+  }
+  #invoiceToPrint {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+.pagination-active {
+  background-color: #3b82f6;
+  color: white;
+}
