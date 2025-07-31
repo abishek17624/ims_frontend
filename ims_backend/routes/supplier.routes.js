@@ -103,10 +103,10 @@ router.put('/:id', authMiddleware, authorizeRoles('admin'), async (req, res) => 
             [name, product, category, price, contact, email, returnPolicy, status, comments, id]
         );
 
-        // Optionally update user's email/name if they are changed via supplier profile
+        // Update user's email if it's changed via supplier profile
         await db.execute(
-            `UPDATE users SET email=?, name=? WHERE id=?`,
-            [email, name, user_id]
+            `UPDATE users SET email=? WHERE id=?`,
+            [email, user_id]
         );
 
         res.status(200).json({ message: 'Supplier updated successfully' });

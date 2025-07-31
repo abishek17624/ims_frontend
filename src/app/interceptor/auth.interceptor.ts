@@ -21,16 +21,21 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => { //
 
   return next(authRequest).pipe( //
     catchError((error: HttpErrorResponse) => { //
+      console.log('Auth Interceptor - Error response:', error.status, error.url); //
+      
+      // Only attempt refresh for 401 errors on protected endpoints
       if (
         error.status === 401 &&
         !req.url.includes('/auth/login') && //
         !req.url.includes('/auth/register') && //
-        !req.url.includes('/auth/refresh-token') //
+        !req.url.includes('/auth/refresh-token') && //
+        !req.url.includes('/auth/me') // Don't retry /me requests to avoid loops
       ) {
         console.log('Auth Interceptor - 401 error, attempting token refresh'); //
 
         return authService.refreshToken().pipe( //
           switchMap((response: any) => { //
+            console.log('Auth Interceptor - Token refresh successful'); //
             const newToken = authService.getToken(); //
             const retryRequest = req.clone({ //
               setHeaders: {
@@ -42,8 +47,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => { //
             return next(retryRequest); //
           }),
           catchError((refreshError) => { //
-            console.log('Auth Interceptor - Token refresh failed'); //
-            authService.logout().subscribe(); //
+            console.log('Auth Interceptor - Token refresh failed:', refreshError.status); //
+            // Don't automatically clear auth data, let the auth service handle it
             return throwError(() => refreshError); //
           })
         );

@@ -1,30 +1,34 @@
 import { Component, inject, OnInit } from '@angular/core'; // <--- Add OnInit
-import { RouterOutlet, Router, RouterLink } from '@angular/router'; //
+import { RouterOutlet, Router } from '@angular/router'; //
 import { CommonModule } from '@angular/common'; //
 import { AuthService } from './services/auth.service'; // <--- Import AuthService
+import { AuthDebugService } from './services/auth-debug.service'; // Import debug service
 import { filter } from 'rxjs/operators'; // For potential future use
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink], //
+  imports: [CommonModule, RouterOutlet], //
   templateUrl: './app.component.html', //
   styleUrls: ['./app.component.css'] //
 })
 export class AppComponent implements OnInit { // <--- Implement OnInit
   title = 'i_m_s'; //
   authService = inject(AuthService); // Inject AuthService
+  authDebugService = inject(AuthDebugService); // Inject debug service
 
   constructor(private router: Router) { } //
 
   ngOnInit(): void {
+    console.log('🚀 App Component initialized - Authentication system ready');
+    
+    // Log initial auth state for debugging
+    this.authDebugService.logAuthState();
+
     // Optional: Subscribe to authentication changes to react in app component if needed
-    // this.authService.isAuthenticated$.subscribe(isAuthenticated => {
-    //   console.log('App Component - isAuthenticated:', isAuthenticated);
-    // });
-    // this.authService.currentUser$.subscribe(user => {
-    //   console.log('App Component - currentUser:', user);
-    // });
+    this.authService.currentUser$.subscribe(user => {
+      console.log('App Component - currentUser changed:', user ? `${user.name} (${user.role})` : 'null');
+    });
   }
 
   onLogout(): void {

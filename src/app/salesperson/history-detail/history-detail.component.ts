@@ -141,15 +141,15 @@ export class HistoryDetailComponent implements OnInit {
 
   addRow(): void {
     if (!this.currentTransaction) return;
-    this.currentTransaction.items.push({
-      productId: '',
-      productName: '',
-      category: '',
-      quantity: 1,
-      price: 0,
-      discount: 0,
-      total: 0
-    });
+    // this.currentTransaction.items.push({
+    //   productId: '',
+    //   productName: '',
+    //   category: '',
+    //   quantity: 1,
+    //   price: 0,
+    //   discount: 0,
+    //   total: 0
+    // });
   }
 
   deleteRow(index: number): void {

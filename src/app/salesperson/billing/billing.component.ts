@@ -1,249 +1,420 @@
+// components/salesperson/billing/billing.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { InventoryService } from '../../services/inventory.service';
-import { Products } from '../../models/product';
-import { TransactionService } from '../../services/billing.service';
-import { Transaction, TransactionItem } from '../../models/bills';
+import { HttpClient } from '@angular/common/http'; // Import HttpClient
+import { Products } from '../../models/product'; // Import Products model
+import { environment } from '../../../environments/environment'; // Import environment
+import { AuthService } from '../../services/auth.service'; // Import AuthService
+
+// Define BillItem interface for a single product line in a bill (matches backend structure for products_sold array)
+interface BillItem {
+  product_id: string; // Changed to string to match products.id
+  productName: string; // Derived from products table
+  category: string; // Derived from products table
+  unit: string;
+  quantity: number;
+  price: number; // Selling price per unit
+  discount: number; // Discount amount for this line item
+  total: number; // Total for this specific product line (quantity * price - discount)
+}
+
+// Define BillTransaction interface for displaying unique bills from backend /transactions endpoint
+interface BillTransaction {
+  transaction_id: string;
+  customer_name: string;
+  customer_phone: string;
+  created_date: string; // YYYY-MM-DD
+  order_no: string;
+  total_qty_bill: number;
+  total_amount_bill: number; // Ensure this is number
+}
+
 
 @Component({
   selector: 'app-billing',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './billing.component.html',
   styleUrls: ['./billing.component.css']
 })
 export class BillingComponent implements OnInit {
-printPage() {
-throw new Error('Method not implemented.');
-}
-  title = 'StockEasy';
-  welcomeMessage = 'Welcome SalesPerson';
-  rowCount = 0;
-  totalQty = 0;
-  totalAmount = 0;
-  allProducts: Products[] = [];
-  categories: string[] = [];
+  // Form fields for new bill
+  customerName: string = '';
+  customerPhone: string = '';
+  orderNo: string = ''; // Can be auto-generated or manual
+  selectedCategory: string = ''; // For filtering products dropdown
+  selectedProduct: Products | null = null; // Currently selected product for adding to bill
+  quantity: number = 1;
+  discount: number = 0; // Per item discount, applied on product.sellingPrice
+  unit: string = 'Units'; // Default unit (can be derived from product model if it has one)
 
-  customer = {
-    name: '',
-    phone: '',
-    date: new Date().toISOString().split('T')[0],
-    orderNo: this.generateOrderNo()
-  };
+  // Bill items array (products added to current bill)
+  billItems: BillItem[] = [];
 
-  productRows: any[] = [];
+  // Calculated totals for the current bill
+  totalBillQuantity: number = 0;
+  totalBillAmount: number = 0;
+  totalDiscountAmount: number = 0; // Total discount across all items
 
-  constructor(
-    private inventoryService: InventoryService,
-    private transactionService: TransactionService
-  ) {}
+  // Data for dropdowns
+  allCategories: string[] = []; // Only active category names
+  allProducts: Products[] = []; // All active products (from backend)
 
-  ngOnInit() {
-    this.loadProducts();
+  // UI state
+  showToast = false;
+  toastMessage = '';
+  toastType: 'success' | 'error' | 'warning' = 'success';
+  showSuccessModal = false; // For showing a success modal after bill creation
+  transactionId: string = ''; // ID of the newly created transaction
+  toastTimeout: any; // Add missing property for toast timeout
+
+  // For displaying existing bills
+  currentView: 'create' | 'list' | 'view' = 'create'; // Controls which section is visible
+  allBillTransactions: BillTransaction[] = []; // Stores unique bill transactions for list view
+  selectedBillTransaction: BillTransaction | null = null; // Selected transaction for viewing details
+  selectedBillItems: BillItem[] = []; // Items of the selected transaction being viewed
+
+
+  constructor(private http: HttpClient, private authService: AuthService) { }
+
+  ngOnInit(): void {
+    this.loadCategories(); // Load categories for filtering products
+    this.loadProducts(); // Load all products for selection
+    this.generateNewOrderNo(); // Generate an initial order number
+    this.loadBillTransactions(); // Load existing bills for history view
   }
 
-  loadProducts() {
-    this.allProducts = this.inventoryService.getProducts();
-    this.categories = this.inventoryService.getAllCategories();
+  // --- Data Loading from Backend ---
+
+  loadCategories(): void {
+    // Fetches categories that are 'active' for filtering product dropdown
+    this.http.get<any[]>(`${environment.apiUrl}/product/category`, { withCredentials: true })
+      .subscribe({
+        next: (data) => {
+          this.allCategories = data.map(cat => cat.name);
+          console.log('Loaded categories:', this.allCategories);
+        },
+        error: (err) => {
+          console.error('Failed to load categories:', err);
+          this.showToastMessage('Failed to load categories for product filter.', 'error');
+        }
+      });
   }
 
-  getCategories(): string[] {
-    return this.categories;
+  loadProducts(): void {
+    // Fetches all active products for the product selection dropdown
+    this.http.get<Products[]>(`${environment.apiUrl}/product`, { withCredentials: true }) // Assuming /product endpoint returns active products
+      .subscribe({
+        next: (data) => {
+          this.allProducts = data;
+        },
+        error: (err) => {
+          console.error('Failed to load products:', err);
+          this.showToastMessage('Failed to load products for billing.', 'error');
+        }
+      });
   }
 
-  getProductsByCategory(category: string): Products[] {
-    return this.allProducts.filter(product => product.category === category);
+  loadBillTransactions(): void {
+    // Fetches unique bill transactions for the history list
+    this.http.get<BillTransaction[]>(`${environment.apiUrl}/billing/transactions`, { withCredentials: true })
+      .subscribe({
+        next: (data) => {
+          this.allBillTransactions = data;
+        },
+        error: (err) => {
+          console.error('Failed to load bill transactions:', err);
+          this.showToastMessage('Failed to load bill history.', 'error');
+        }
+      });
   }
 
-  generateOrderNo(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let order = '';
-    for (let i = 0; i < 6; i++) {
-      order += chars.charAt(Math.floor(Math.random() * chars.length));
+  // --- Form Logic ---
+
+  generateNewOrderNo(): void {
+    // Simple timestamp-based order number for demonstration
+    this.orderNo = `BILL-${Date.now().toString().slice(-8)}`;
+  }
+
+  /**
+   * Filters products for the dropdown based on selected category.
+   */
+  get filteredProductsByCategory(): Products[] {
+    if (!this.selectedCategory) {
+      return this.allProducts; // Show all if no category selected
     }
-    return order;
+    return this.allProducts.filter(p => p.category === this.selectedCategory);
   }
 
-  checkRequired() {
-    return this.customer.name.trim() && this.customer.date;
-  }
-
-  addRow() {
-    this.rowCount++;
-    this.productRows.push({
-      id: this.rowCount,
-      category: '',
-      product: null,
-      quantity: 1,
-      price: 0,
-      discount: 0,
-      total: 0,
-      products: []
-    });
-  }
-
-  deleteRow(index: number) {
-    this.productRows.splice(index, 1);
-    this.updateTotal();
-  }
-
-  updateProducts(row: any) {
-    if (row.category) {
-      row.products = this.getProductsByCategory(row.category);
-      row.product = null;
-    } else {
-      row.products = [];
-      row.product = null;
+  /**
+   * Handles when a product is selected from the dropdown.
+   */
+  onProductChange(): void {
+    if (this.selectedProduct) {
+      console.log('Selected product:', this.selectedProduct); // Debug log
+      this.unit = this.selectedProduct.unit || 'Units'; // Use product unit or default to 'Units'
+      this.quantity = 1; // Default quantity
+      this.discount = 0; // Default discount
+      console.log('Set price to:', this.selectedProduct.sellingPrice); // Debug log
     }
   }
 
-  onProductSelect(row: any) {
-    if (row.product) {
-      row.price = row.product.sellingPrice;
-      this.updateTotal();
+  /**
+   * Adds the currently selected product to the bill items list.
+   * Includes validation for stock and quantity.
+   */
+  addProductToBill(): void {
+    if (!this.selectedProduct) {
+      this.showToastMessage('Please select a product.', 'warning');
+      return;
     }
-  }
-
-  updateTotal() {
-    this.totalQty = 0;
-    this.totalAmount = 0;
-
-    this.productRows.forEach(row => {
-      const qty = row.quantity || 0;
-      const price = row.price || 0;
-      const discount = row.discount || 0;
-
-      row.total = qty * price - discount;
-
-      this.totalQty += qty;
-      this.totalAmount += row.total;
-    });
-  }
-
-  saveAndPrint() {
-    if (!this.checkRequired()) {
-      alert('Please fill all required fields');
+    if (this.quantity <= 0) {
+      this.showToastMessage('Quantity must be greater than zero.', 'warning');
+      return;
+    }
+    if (this.selectedProduct.quantity < this.quantity) {
+      this.showToastMessage(`Insufficient stock for ${this.selectedProduct.name}. Available: ${this.selectedProduct.quantity}.`, 'warning');
+      return;
+    }
+    if (this.discount < 0 || this.discount > (this.selectedProduct.sellingPrice * this.quantity)) {
+      this.showToastMessage('Invalid discount amount.', 'warning');
       return;
     }
 
-    if (this.productRows.length === 0) {
-      alert('Please add at least one product');
+    const itemTotal = (this.selectedProduct.sellingPrice * this.quantity) - this.discount;
+
+    const newItem: BillItem = {
+      product_id: this.selectedProduct.id, // ID is string
+      productName: this.selectedProduct.name,
+      category: this.selectedProduct.category,
+      unit: this.unit,
+      quantity: this.quantity,
+      price: this.selectedProduct.sellingPrice, // Make sure this is the selling price
+      discount: this.discount,
+      total: itemTotal
+    };
+
+    console.log('Adding item to bill:', newItem); // Debug log to check values
+
+    this.billItems.push(newItem);
+    this.calculateTotals(); // Recalculate totals after adding item
+
+    // Reset product selection for next item
+    this.selectedProduct = null;
+    this.quantity = 1;
+    this.discount = 0;
+    this.selectedCategory = ''; // Clear category filter to show all products
+  }
+
+  /**
+   * Removes an item from the bill items list.
+   * @param index The index of the item to remove.
+   */
+  removeBillItem(index: number): void {
+    this.billItems.splice(index, 1);
+    this.calculateTotals(); // Recalculate totals after removing item
+  }
+
+  /**
+   * Calculates the total quantity, total amount, and total discount for the current bill.
+   */
+  calculateTotals(): void {
+    this.totalBillQuantity = this.billItems.reduce((sum, item) => sum + item.quantity, 0);
+    this.totalBillAmount = this.billItems.reduce((sum, item) => sum + item.total, 0);
+    // Note: totalDiscountAmount might be sum of `item.discount` if discount is per item.
+    // If discount is per quantity, adjust logic. Current schema suggests discount is per item
+    this.totalDiscountAmount = this.billItems.reduce((sum, item) => sum + item.discount, 0);
+  }
+
+  // --- Bill Submission ---
+
+  /**
+   * Submits the current bill to the backend.
+   */
+  submitBill(): void {
+    if (!this.customerName.trim() || !this.orderNo.trim() || this.billItems.length === 0) {
+      this.showToastMessage('Customer name, bill/order number, and at least one product are required.', 'error');
       return;
     }
+    if (this.totalBillAmount <= 0) {
+        this.showToastMessage('Bill total must be greater than zero.', 'error');
+        return;
+    }
 
-    // Create transaction
-    const transaction: Transaction = {
-      id: Date.now().toString(),
-      customerName: this.customer.name,
-      customerPhone: this.customer.phone,
-      date: this.customer.date,
-      orderNo: this.customer.orderNo,
-      items: this.productRows.map(row => ({
-        productId: row.product.id,
-        productName: row.product.name,
-        category: row.product.category,
-        quantity: row.quantity,
-        price: row.price,
-        discount: row.discount,
-        total: row.total
+
+    const billPayload = {
+      customer_name: this.customerName.trim(),
+      customer_phone: this.customerPhone.trim() || null,
+      order_no: this.orderNo.trim(),
+      products_sold: this.billItems.map(item => ({
+        product_id: item.product_id, // ID is string
+        quantity: item.quantity,
+        unit: item.unit,
+        price: item.price,
+        discount: item.discount,
+        total: item.total
       })),
-      totalQty: this.totalQty,
-      totalAmount: this.totalAmount
+      total_qty_bill: this.totalBillQuantity,
+      total_amount_bill: this.totalBillAmount
     };
 
-    // Update inventory quantities
-    this.productRows.forEach(row => {
-      const product = this.allProducts.find(p => p.id === row.product.id);
-      if (product) {
-        product.quantity -= row.quantity;
-        if (product.quantity < 0) product.quantity = 0;
-      }
-    });
+    console.log('Submitting bill payload:', billPayload); // Debug log
+    console.log('Bill items details:', this.billItems); // Debug log
 
-    // Save data
-    this.transactionService.saveTransaction(transaction);
-    this.inventoryService.saveProducts(this.allProducts);
-
-    // Print receipt
-    this.printReceipt(transaction);
-
-    // Reset form
-    this.resetForm();
+    this.http.post(`${environment.apiUrl}/billing/create`, billPayload, { withCredentials: true })
+      .subscribe({
+        next: (response: any) => {
+          if (response.message === 'Bill created successfully') {
+            this.transactionId = response.transactionId; // Get transaction ID from backend
+            this.showSuccessModal = true; // Show success popup
+            this.resetBillForm(); // Clear form after successful submission
+            this.loadProducts(); // Reload products to reflect reduced stock instantly
+            this.loadBillTransactions(); // Refresh bill history list
+          } else {
+            this.showToastMessage(response.message || 'Failed to create bill.', 'error');
+          }
+        },
+        error: (err) => {
+          console.error('Bill creation failed:', err);
+          this.showToastMessage(err.error?.message || 'Server error occurred during bill creation.', 'error');
+        }
+      });
   }
 
-  printReceipt(transaction: Transaction) {
-    // Create printable content
-    const printContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 300px; margin: 0 auto; padding: 20px;">
-        <h2 style="text-align: center; margin-bottom: 10px;">StockEasy</h2>
-        <p style="text-align: center; margin-bottom: 20px;">Order #${transaction.orderNo}</p>
-        
-        <div style="margin-bottom: 15px;">
-          <p><strong>Customer:</strong> ${transaction.customerName}</p>
-          <p><strong>Date:</strong> ${transaction.date}</p>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-          <thead>
-            <tr>
-              <th style="border-bottom: 1px solid #ddd; text-align: left; padding: 5px;">Item</th>
-              <th style="border-bottom: 1px solid #ddd; text-align: right; padding: 5px;">Qty</th>
-              <th style="border-bottom: 1px solid #ddd; text-align: right; padding: 5px;">Price</th>
-              <th style="border-bottom: 1px solid #ddd; text-align: right; padding: 5px;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${transaction.items.map(item => `
-              <tr>
-                <td style="border-bottom: 1px solid #eee; padding: 5px;">${item.productName}</td>
-                <td style="border-bottom: 1px solid #eee; text-align: right; padding: 5px;">${item.quantity}</td>
-                <td style="border-bottom: 1px solid #eee; text-align: right; padding: 5px;">₹${item.price.toFixed(2)}</td>
-                <td style="border-bottom: 1px solid #eee; text-align: right; padding: 5px;">₹${item.total.toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        
-        <div style="text-align: right; font-weight: bold; margin-top: 10px;">
-          <p>Total: ₹${transaction.totalAmount.toFixed(2)}</p>
-        </div>
-        
-        <p style="text-align: center; margin-top: 30px; font-size: 12px;">
-          Thank you for your purchase!
-        </p>
-      </div>
-    `;
-
-    // Open print window
-    const printWindow = window.open('', '_blank');
-    printWindow?.document.write(printContent);
-    printWindow?.document.close();
-    printWindow?.focus();
-    setTimeout(() => {
-      printWindow?.print();
-      printWindow?.close();
-    }, 500);
+  /**
+   * Resets the bill creation form to its initial state.
+   */
+  resetBillForm(): void {
+    this.customerName = '';
+    this.customerPhone = '';
+    this.generateNewOrderNo(); // Generate a new order number
+    this.selectedCategory = '';
+    this.selectedProduct = null;
+    this.quantity = 1;
+    this.discount = 0;
+    this.unit = 'Units';
+    this.billItems = [];
+    this.calculateTotals(); // Reset totals
   }
 
-  resetForm() {
-    this.customer = {
-      name: '',
-      phone: '',
-      date: new Date().toISOString().split('T')[0],
-      orderNo: this.generateOrderNo()
-    };
-    this.productRows = [];
-    this.totalQty = 0;
-    this.totalAmount = 0;
-    this.rowCount = 0;
+  // --- View Existing Bills ---
+
+  /**
+   * Views the detailed items of a selected bill transaction.
+   * @param transaction The BillTransaction object to view.
+   */
+  viewBillDetails(transaction: BillTransaction): void {
+    this.http.get<BillItem[]>(`${environment.apiUrl}/billing/transaction/${transaction.transaction_id}`, { withCredentials: true })
+      .subscribe({
+        next: (data) => {
+          this.selectedBillTransaction = transaction; // Store the main transaction summary
+          this.selectedBillItems = data; // Store the line items for the transaction
+          this.currentView = 'view'; // Change view to show details modal
+        },
+        error: (err) => {
+          console.error('Failed to load transaction details:', err);
+          this.showToastMessage('Failed to load bill details.', 'error');
+        }
+      });
   }
 
-  confirmLogout() {
-    const confirmed = confirm("SalesPerson, do you want to logout? ⚠️");
-    if (confirmed) {
-      window.location.href = "/login";
+  // --- UI Helpers (Toast, Navigation, Print/Download) ---
+
+  /**
+   * Displays a toast notification message.
+   * @param message The message to display.
+   * @param type The type of toast (success, error, warning).
+   */
+  showToastMessage(message: string, type: 'success' | 'error' | 'warning'): void {
+    this.toastMessage = message;
+    this.toastType = type;
+    this.showToast = true;
+
+    if (this.toastTimeout) {
+      clearTimeout(this.toastTimeout);
     }
+
+    this.toastTimeout = setTimeout(() => {
+      this.showToast = false;
+    }, 3000); // Hide after 3 seconds
+  }
+
+  // --- Navigation between bill views ---
+  showCreateBillView(): void {
+    this.currentView = 'create';
+    this.resetBillForm(); // Always reset form when switching to create view
+  }
+
+  showBillListView(): void {
+    this.currentView = 'list';
+    this.loadBillTransactions(); // Refresh list when navigating to it
+  }
+
+  // --- Invoice/Receipt Display (Simplified for frontend only) ---
+  // These calculations are for display in the view modal and don't directly interact with backend billing logic
+  getBillSubtotal(): number {
+    return this.selectedBillItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }
+
+  getBillTotalDiscount(): number {
+    return this.selectedBillItems.reduce((sum, item) => sum + item.discount, 0);
+  }
+
+  getBillTax(): number {
+    const subtotalAfterDiscount = this.getBillSubtotal() - this.getBillTotalDiscount();
+    return subtotalAfterDiscount * 0.18; // Assuming 18% tax
+  }
+
+  getBillGrandTotal(): number {
+    const subtotalAfterDiscount = this.getBillSubtotal() - this.getBillTotalDiscount();
+    const tax = this.getBillTax();
+    const shipping = 0; // Assuming no shipping for local billing
+    return subtotalAfterDiscount + tax + shipping;
+  }
+
+  printBill(): void {
+    // Basic print functionality for the displayed bill
+    window.print();
+  }
+
+  downloadBill(): void {
+    // Downloads the displayed bill content as a text file
+    const billContent = this.generateBillContentForDownload();
+    const blob = new Blob([billContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bill_${this.selectedBillTransaction?.transaction_id || 'receipt'}.txt`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  generateBillContentForDownload(): string {
+    let content = `--- StockEasy Bill ---\n\n`;
+    content += `Transaction ID: ${this.selectedBillTransaction?.transaction_id || 'N/A'}\n`;
+    content += `Customer Name: ${this.selectedBillTransaction?.customer_name || 'N/A'}\n`;
+    content += `Customer Phone: ${this.selectedBillTransaction?.customer_phone || 'N/A'}\n`;
+    content += `Bill Date: ${this.selectedBillTransaction?.created_date || 'N/A'}\n`;
+    content += `Order No: ${this.selectedBillTransaction?.order_no || 'N/A'}\n\n`;
+    content += `--------------------\n`;
+    content += `Items:\n`;
+    this.selectedBillItems.forEach(item => {
+      content += `- ${item.productName} (${item.category})\n`;
+      content += `  Qty: ${item.quantity} ${item.unit} @ ₹${item.price.toFixed(2)}/unit\n`;
+      if (item.discount > 0) {
+          content += `  Discount: ₹${item.discount.toFixed(2)}\n`;
+      }
+      content += `  Line Total: ₹${item.total.toFixed(2)}\n\n`;
+    });
+    content += `--------------------\n`;
+    content += `Subtotal: ₹${this.getBillSubtotal().toFixed(2)}\n`;
+    content += `Total Discount: ₹${this.getBillTotalDiscount().toFixed(2)}\n`;
+    content += `Tax (18%): ₹${this.getBillTax().toFixed(2)}\n`;
+    content += `Grand Total: ₹${this.getBillGrandTotal().toFixed(2)}\n`;
+    content += `--------------------\n`;
+    content += `Thank you for your business!\n`;
+    content += `--------------------\n`;
+    return content;
   }
 }

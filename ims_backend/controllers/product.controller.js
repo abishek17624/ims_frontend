@@ -3,9 +3,11 @@ const pool = require('../config/db');
 // Get all products
 exports.getAllProducts = async (req, res) => {
     try {
+        // For admin, get ALL products (active and inactive) to manage them
         const [products] = await pool.query(
-            'SELECT * FROM products WHERE status = "active" ORDER BY created_at DESC'
+            'SELECT * FROM products ORDER BY created_at DESC'
         );
+        console.log('Products from database:', products); // Debug log
         res.json(products);
     } catch (error) {
         console.error('Error fetching products:', error);
@@ -55,18 +57,22 @@ exports.updateProduct = async (req, res) => {
             supplier, contact
         } = req.body;
 
+        console.log('Updating product with ID:', id, 'and data:', req.body); // Debug log
+
         const [result] = await pool.query(
             `UPDATE products 
              SET name = ?, category = ?, subcategory = ?, buying_price = ?,
                  selling_price = ?, quantity = ?, threshold = ?, expiry = ?,
                  supplier = ?, contact = ?
-             WHERE id = ? AND status = "active"`,
+             WHERE id = ?`,
             [name, category, subcategory || null, buying_price, selling_price,
              quantity, threshold, expiry || null, supplier, contact, id]
         );
 
+        console.log('Update result:', result); // Debug log
+
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Product not found or inactive' });
+            return res.status(404).json({ message: 'Product not found' });
         }
 
         res.json({ message: 'Product updated successfully' });
@@ -92,6 +98,26 @@ exports.deactivateProduct = async (req, res) => {
         res.json({ message: 'Product deactivated successfully' });
     } catch (error) {
         console.error('Error deactivating product:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Activate product
+exports.activateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [result] = await pool.query(
+            'UPDATE products SET status = "active" WHERE id = ? AND status = "inactive"',
+            [id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Product not found or already active' });
+        }
+
+        res.json({ message: 'Product activated successfully' });
+    } catch (error) {
+        console.error('Error activating product:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

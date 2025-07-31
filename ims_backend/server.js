@@ -26,6 +26,13 @@ app.use('/api/category', categoryRoutes);
 const productRoutes = require('./routes/product');
 app.use('/api/product', productRoutes);
 
+const orderRoutes = require('./routes/orders.routes');
+app.use('/api/orders', orderRoutes);  
+
+// In your main backend file (e.g., app.js or server.js)
+const billingRoutes = require('./routes/billing.routes');
+app.use('/api/billing', billingRoutes); // Or whatever base path you use
+
 app.use('/api/admin', adminRoutes);
 app.use('/api/salesperson', salespersonRoutes);
 app.use('/api/supplier', supplierRoutes);

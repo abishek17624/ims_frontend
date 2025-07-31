@@ -3,14 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Ensure these are loaded in your index.html or angular.json scripts array if not globally available -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
   <div class="bg-gray-50 p-6 w-[1220px]">
-  <!-- Toast Notification -->
   <div *ngIf="toastMessage" class="fixed top-4 right-4 z-50">
     <div [class]="'flex items-center p-4 rounded-lg shadow-lg ' + toastClass">
       <i [class]="toastIcon + ' mr-2'"></i>
@@ -18,7 +16,6 @@
     </div>
   </div>
 
-  <!-- Inventory Header -->
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold text-gray-800">
       <i class="fas fa-boxes mr-2"></i>Inventory Management
@@ -32,7 +29,6 @@
     </div>
   </div>
 
-  <!-- Action Toolbar -->
   <div class="bg-white p-4 rounded-lg shadow-md mb-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div class="flex flex-wrap items-center gap-8">
@@ -55,10 +51,20 @@
           <label for="statusFilter" class="sr-only">Filter by Status</label>
           <select id="statusFilter" [(ngModel)]="selectedStatus" (change)="filterProducts()"
                   class="appearance-none border p-2 pr-8 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
-            <option value="">All Statuses</option>
+            <option value="">All Stock Status</option>
             <option value="in_stock">In Stock</option>
             <option value="low_stock">Low Stock</option>
             <option value="out_of_stock">Out of Stock</option>
+          </select>
+          <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-500 pointer-events-none"></i>
+        </div>
+        <div class="relative">
+          <label for="productStatusFilter" class="sr-only">Filter by Product Status</label>
+          <select id="productStatusFilter" [(ngModel)]="selectedProductStatus" (change)="filterProducts()"
+                  class="appearance-none border p-2 pr-8 rounded-lg w-40 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+            <option value="">All Products</option>
+            <option value="active">Active Only</option>
+            <option value="inactive">Inactive Only</option>
           </select>
           <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-500 pointer-events-none"></i>
         </div>
@@ -80,7 +86,6 @@
     </div>
   </div>
 
-  <!-- Category Management Modal -->
   <div *ngIf="showCategoryModal" class="fixed inset-0 backdrop-blur-[10px] bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white border-2 border-black rounded-lg p-6 w-full max-w-md">
       <div class="flex justify-between items-center mb-4">
@@ -104,7 +109,7 @@
             <div>
               <span>{{category.name}}</span>
               <span [class]="'ml-2 px-2 py-1 rounded-full text-xs font-medium ' +
-                             (category.action === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')">
+                               (category.action === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')">
                 {{ category.action | titlecase }}
               </span>
             </div>
@@ -115,8 +120,7 @@
               <button *ngIf="category.action === 'active'" (click)="confirmDeactivateCategory(category)" class="text-red-500 hover:text-red-700" title="Deactivate">
                 <i class="fas fa-toggle-off"></i>
               </button>
-              <!-- Permanent delete button is REMOVED as per request -->
-            </div>
+              </div>
           </li>
           <li *ngIf="categories.length === 0" class="text-center p-3 text-gray-500">No categories found.</li>
         </ul>
@@ -130,7 +134,6 @@
     </div>
   </div>
 
-  <!-- Deactivate Category Confirmation Modal -->
   <div *ngIf="categoryToDelete" class="fixed inset-0 backdrop-blur-[10px] bg-opacity-50 bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white border-2 border-black rounded-lg p-6 w-full max-w-md">
       <div class="mb-4">
@@ -149,7 +152,6 @@
     </div>
   </div>
 
-  <!-- Inventory Table -->
   <div class="bg-white rounded-lg shadow-md overflow-hidden">
     <div class="overflow-x-auto">
       <table class="w-full">
@@ -158,10 +160,12 @@
             <th class="p-4 text-left font-semibold text-gray-700">Product ID</th>
             <th class="p-4 text-left font-semibold text-gray-700">Product</th>
             <th class="p-4 text-left font-semibold text-gray-700">Category</th>
-            <th class="p-4 text-left font-semibold text-gray-700">Price</th>
+            <th class="p-4 text-left font-semibold text-gray-700">Buying Price</th>
+            <th class="p-4 text-left font-semibold text-gray-700">Selling Price</th>
             <th class="p-4 text-left font-semibold text-gray-700">Stock</th>
             <th class="p-4 text-left font-semibold text-gray-700">Threshold</th>
-            <th class="p-4 text-left font-semibold text-gray-700">Status</th>
+            <th class="p-4 text-left font-semibold text-gray-700">Stock Status</th>
+            <th class="p-4 text-left font-semibold text-gray-700">Product Status</th>
             <th class="p-4 text-left font-semibold text-gray-700">Expiry</th>
             <th class="p-4 text-left font-semibold text-gray-700">Actions</th>
           </tr>
@@ -178,30 +182,35 @@
               </div>
             </td>
             <td class="p-4 text-gray-700">{{ product.category }}</td>
-            <td class="p-4 font-medium">₹{{ product.sellingPrice.toFixed(2) }}</td>
+            <td class="p-4 font-medium text-green-600">₹{{ (product.buyingPrice || 0).toFixed(2) }}</td>
+            <td class="p-4 font-medium text-blue-600">₹{{ (product.sellingPrice || 0).toFixed(2) }}</td>
             <td class="p-4">
-              <div class="flex items-center">
-                <span class="mr-2">{{ product.quantity }}</span>
-                <div class="w-16 bg-gray-200 rounded-full h-2">
-                  <div class="h-2 rounded-full"
-                       [ngClass]="{
-                         'bg-red-500': getStockColor(product) === 'red',
-                         'bg-yellow-500': getStockColor(product) === 'yellow',
-                         'bg-green-500': getStockColor(product) === 'green'
-                       }"
-                       [style.width.%]="getStockWidth(product)">
+                <div class="flex items-center">
+                  <span class="mr-2">{{ product.quantity }}</span>
+                  <div class="w-16 bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full"
+                         [ngClass]="{
+                            'bg-red-500': getStockColor(product) === 'red',
+                            'bg-yellow-500': getStockColor(product) === 'yellow',
+                            'bg-green-500': getStockColor(product) === 'green'
+                          }"
+                         [style.width.%]="getStockWidth(product)">
+                    </div>
                   </div>
                 </div>
-              </div>
               </td>
             <td class="p-4">{{ product.threshold }}</td>
             <td class="p-4">
               <span class="px-2 py-1 rounded-full text-xs font-medium {{ getStatusClass(product) }}">{{ getStatusText(product) }}</span>
             </td>
-            <td class="p-4">{{ formatDate(product.expiry) }}</td>
+            <td class="p-4">
+              <span class="px-2 py-1 rounded-full text-xs font-medium {{ product.action === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                {{ product.action | titlecase }}
+              </span>
+            </td>
+            <td class="p-4">{{ formatDate(product.expiry || '') }}</td>
             <td class="p-4">
             <div class="flex items-center space-x-3">
-              <!-- View Button with Tooltip -->
               <div class="relative group">
                 <button (click)="viewProduct(product)" class="text-blue-500 hover:text-blue-700 transition">
                   <i class="fas fa-eye"></i>
@@ -212,7 +221,6 @@
                 </span>
               </div>
 
-              <!-- Edit Button with Tooltip -->
               <div class="relative group">
                 <button (click)="openEditProductModal(product)" class="text-yellow-500 hover:text-yellow-700 transition">
                   <i class="fas fa-edit"></i>
@@ -223,13 +231,13 @@
                 </span>
               </div>
 
-              <!-- Delete Button with Tooltip -->
               <div class="relative group">
-                <button (click)="confirmDelete(product)" class="text-red-500 hover:text-red-700 transition">
-                  <i class="fas fa-trash-alt"></i>
+                <button (click)="toggleProductStatus(product)"
+                         [class]="'transition ' + (product.action === 'active' ? 'text-green-500 hover:text-green-700' : 'text-red-500 hover:text-red-700')">
+                  <i [class]="product.action === 'active' ? 'fas fa-toggle-on' : 'fas fa-toggle-off'"></i>
                 </button>
                 <span class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                  Delete
+                  {{ product.action === 'active' ? 'Deactivate' : 'Activate' }}
                   <span class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-solid border-transparent border-t-gray-800"></span>
                 </span>
               </div>
@@ -266,7 +274,6 @@
     </div>
   </div>
 
-  <!-- Add/Edit Product Modal -->
   <div *ngIf="showProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
       <div class="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
@@ -281,22 +288,23 @@
       <div class="p-6">
         <form (ngSubmit)="submitProductForm()" #productForm="ngForm">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Product Information -->
             <div class="col-span-2">
               <h3 class="text-lg font-semibold text-blue-600 mb-3 border-b pb-2 flex items-center">
                 <i class="fas fa-info-circle mr-2"></i>Product Information
               </h3>
             </div>
 
-            <div>
+            <div *ngIf="isEditing">
               <label class="block text-sm font-medium text-gray-700 mb-1">Product ID*</label>
               <input type="text" [(ngModel)]="currentProduct.id" name="id" required
                      class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                     [disabled]="isEditing">
-              <div *ngIf="productForm.submitted && productForm.controls['id']?.errors" class="text-red-500 text-sm mt-1">
+                     disabled> <div *ngIf="productForm.submitted && productForm.controls['id']?.errors" class="text-red-500 text-sm mt-1">
                 Product ID is required
               </div>
             </div>
+
+            <div *ngIf="!isEditing" class="hidden"></div>
+
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Product Name*</label>
@@ -325,7 +333,6 @@
                      class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
 
-            <!-- Pricing Information -->
             <div class="col-span-2">
               <h3 class="text-lg font-semibold text-green-600 mb-3 border-b pb-2 flex items-center">
                 <i class="fas fa-chart-line mr-2"></i>Pricing Information
@@ -350,7 +357,6 @@
               </div>
             </div>
 
-            <!-- Stock Information -->
             <div class="col-span-2">
               <h3 class="text-lg font-semibold text-purple-600 mb-3 border-b pb-2 flex items-center">
                 <i class="fas fa-boxes mr-2"></i>Stock Information
@@ -381,30 +387,37 @@
                      class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
 
-            <!-- Supplier Information -->
             <div class="col-span-2">
               <h3 class="text-lg font-semibold text-yellow-600 mb-3 border-b pb-2 flex items-center">
                 <i class="fas fa-truck mr-2"></i>Supplier Information
               </h3>
             </div>
 
-            <!-- Supplier Selection -->
             <div class="col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Select Supplier</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Select Supplier <span class="text-red-500">*</span>
+              </label>
               <select
-                [(ngModel)]="currentProduct.supplier"
-                  name="supplierSelect"
-                  (change)="onSupplierChange($any($event.target).value)"
-                  class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                <option value="">-- Select a supplier --</option>
-                <option *ngFor="let supplier of suppliers" [value]="supplier.id">
-                  {{ supplier.name }} ({{ supplier.product }} - {{ supplier.category }})
-                </option>
+                [(ngModel)]="currentSupplierId"
+                name="supplierSelect"
+                (change)="onSupplierChange($any($event.target).value)"
+                required
+                class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                [class.border-red-500]="!currentProduct.supplier_id"
+                [disabled]="suppliers.length === 0"
+              >
+                <option value="" *ngIf="suppliers.length === 0">Loading suppliers...</option>
+                <option value="" *ngIf="suppliers.length > 0">-- Select a supplier (Required) --</option>
+                <option *ngFor="let supplier of suppliers" [value]="supplier.id">{{ supplier.name }} ({{ supplier.product }} - {{ supplier.category }})</option>
               </select>
+              <div *ngIf="!currentProduct.supplier_id && suppliers.length > 0" class="text-red-500 text-sm mt-1">
+                <i class="fas fa-exclamation-circle mr-1"></i>Supplier selection is required
+              </div>
+              <div *ngIf="suppliers.length === 0" class="text-blue-500 text-sm mt-1">
+                <i class="fas fa-spinner fa-spin mr-1"></i>Loading suppliers...
+              </div>
             </div>
 
-            <!-- Auto-filled Supplier Details -->
             <div *ngIf="selectedSupplierDetails" class="col-span-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -442,9 +455,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Hidden fields for auto-fill -->
-            <input type="hidden" [(ngModel)]="currentProduct.contact" name="contact">
           </div>
 
           <div class="mt-6 flex justify-end space-x-3">
@@ -461,7 +471,6 @@
     </div>
   </div>
 
-  <!-- Product View Modal -->
   <div *ngIf="selectedProduct" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
       <div class="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
@@ -511,11 +520,11 @@
                 <ul class="space-y-3">
                   <li>
                     <strong class="block text-sm text-gray-500">Buying Price</strong>
-                    <span class="text-gray-700">₹{{ selectedProduct.buyingPrice.toFixed(2) }}</span>
+                    <span class="text-gray-700">₹{{ (selectedProduct.buyingPrice || 0).toFixed(2) }}</span>
                   </li>
                   <li>
                     <strong class="block text-sm text-gray-500">Selling Price</strong>
-                    <span class="text-gray-700">₹{{ selectedProduct.sellingPrice.toFixed(2) }}</span>
+                    <span class="text-gray-700">₹{{ (selectedProduct.sellingPrice || 0).toFixed(2) }}</span>
                   </li>
                   <li>
                     <strong class="block text-sm text-gray-500">Stock</strong>
@@ -527,7 +536,7 @@
                   </li>
                   <li>
                     <strong class="block text-sm text-gray-500">Expiry Date</strong>
-                    <span class="text-gray-700">{{ formatDate(selectedProduct.expiry) }}</span>
+                    <span class="text-gray-700">{{ formatDate(selectedProduct.expiry || '') }}</span>
                   </li>
                 </ul>
               </div>
@@ -545,40 +554,26 @@
                   <strong class="block text-sm text-gray-500">Contact Number</strong>
                   <span class="text-gray-700">{{ selectedProduct.contact }}</span>
                 </div>
+                <div>
+                  <strong class="block text-sm text-gray-500">Supplier ID</strong>
+                  <span class="text-gray-700">{{ selectedProduct.supplier_id }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="sticky bottom-0 bg-white p-4 border-t flex flex-wrap justify-end gap-3">
-        <button (click)="confirmDelete(selectedProduct)" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg transition flex items-center">
-          <i class="fas fa-trash-alt mr-2"></i>Delete
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Delete Confirmation Modal -->
-  <div *ngIf="productToDelete" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-semibold text-gray-800">
-          <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Confirm Deactivation
-        </h3>
-        <button (click)="closeDeleteModal()" class="text-gray-500 hover:text-gray-700">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="mb-6">
-        <p class="text-gray-700">Are you sure you want to deactivate <span class="font-semibold">{{ productToDelete.name }}</span>?</p>
-        <p class="text-sm text-gray-500 mt-2">This will mark the product as inactive and it will no longer appear in active product lists.</p>
-      </div>
-      <div class="flex justify-end space-x-3">
-        <button (click)="closeDeleteModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg transition">
-          Cancel
-        </button>
-        <button (click)="deactivateProduct()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">
-          Deactivate
+      <div class="sticky bottom-0 bg-white p-4 border-t flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-medium text-gray-700">Product Status:</span>
+          <span class="px-2 py-1 rounded-full text-xs font-medium {{ selectedProduct.action === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+            {{ selectedProduct.action | titlecase }}
+          </span>
+        </div>
+        <button (click)="toggleProductStatus(selectedProduct)"
+                [class]="'px-5 py-2 rounded-lg transition flex items-center ' + (selectedProduct.action === 'active' ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white')">
+          <i [class]="(selectedProduct.action === 'active' ? 'fas fa-toggle-off' : 'fas fa-toggle-on') + ' mr-2'"></i>
+          {{ selectedProduct.action === 'active' ? 'Deactivate' : 'Activate' }}
         </button>
       </div>
     </div>

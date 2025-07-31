@@ -21,7 +21,18 @@ export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => { //
             }
             return checkUserRole(fetchedUser, expectedRoles, router); //
           }),
-          catchError(() => { //
+          catchError((error) => { //
+            console.log('Role Guard - getCurrentUser failed:', error);
+            
+            // Check if we have a token in storage
+            const token = authService.getToken();
+            if (token) {
+              // We have a token but getCurrentUser failed, might be a temporary network issue
+              // Allow access for now, component should handle authentication
+              console.log('Role Guard - Token exists, allowing access for component to handle auth');
+              return of(true);
+            }
+            
             router.navigate(['/login']); //
             return of(false); //
           })

@@ -1,11 +1,30 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http'; // Import HttpClient
-import { Products } from '../../../models/product';
+import { HttpClient } from '@angular/common/http';
 import { Supplier } from '../../../models/supplier';
 import * as XLSX from 'xlsx';
 import { environment } from '../../../../environments/environment';
+
+// Define the Products interface to match your MySQL schema
+export interface Products {
+  id?: number; // Changed to number and made optional for auto-increment
+  name: string;
+  category: string;
+  subcategory?: string;
+  buyingPrice: number;
+  sellingPrice: number;
+  quantity: number;
+  threshold: number;
+  expiry?: string; // Stored as string (YYYY-MM-DD) for date input
+  supplier?: string; // Supplier Name from backend
+  contact?: string; // Supplier Contact from backend
+  supplier_id?: number; // Supplier ID to link with suppliers table
+  status?: 'in_stock' | 'low_stock' | 'out_of_stock'; // Stock status (derived from quantity vs threshold)
+  action: 'active' | 'inactive'; // Product active/inactive status from database
+  created_at?: string; // Timestamp from backend
+  updated_at?: string; // Timestamp from backend
+}
 
 // Define a Category interface to match backend response
 interface Category {
@@ -27,18 +46,16 @@ export class AdminInventoryManagementComponent implements OnInit {
   products: Products[] = [];
   filteredProducts: Products[] = [];
   currentPage = 1;
+  priceError: string = '';
   itemsPerPage = 5;
   searchTerm = '';
   selectedCategoryFilter = '';
   selectedSubcategory = '';
   selectedStatus = '';
+  selectedProductStatus = '';
   startDate = '';
   endDate = '';
-  isLoading = false;
-  hasError = false;
-  errorMessage = '';
   selectedProduct: Products | null = null;
-  productToDelete: Products | null = null; // Changed to hold full product object for delete
   showProductModal = false;
   isEditing = false;
   currentProduct: Products = this.getEmptyProduct();
@@ -47,47 +64,62 @@ export class AdminInventoryManagementComponent implements OnInit {
   toastIcon = '';
   Math = Math;
   showCategoryModal = false;
-  newCategoryName = ''; // Renamed to avoid conflict with newCategory in form
-  categories: Category[] = []; // Array of Category objects
-  categoryToDelete: Category | null = null; // Holds the Category object to be deactivated
+  newCategoryName = '';
+  categories: Category[] = [];
+  categoryToDelete: Category | null = null;
   suppliers: Supplier[] = [];
   selectedSupplierDetails: Supplier | null = null;
+  currentSupplierId: string = ''; // Track current supplier ID for form binding
 
-  constructor(private http: HttpClient) {} // Inject HttpClient
+  constructor(private http: HttpClient) {}
 
   ngOnInit() {
     this.loadProducts();
-    this.loadCategories(); // Load all categories for management
+    this.loadCategories();
     this.loadSuppliers();
   }
 
   loadSuppliers() {
+    console.log('Loading suppliers...');
     this.http.get<Supplier[]>(`${environment.apiUrl}/supplier`, { withCredentials: true })
       .subscribe({
         next: (data) => {
+          console.log('Suppliers loaded successfully:', data);
           this.suppliers = data;
         },
         error: (err) => {
           console.error('Failed to load suppliers for dropdown:', err);
-          this.showToast('Failed to load supplier list.', 'error');
+          this.showToast('Failed to load supplier list. Please try refreshing the page.', 'error');
         }
       });
   }
 
   onSupplierChange(supplierId: string) {
-    this.selectedSupplierDetails = this.suppliers.find(s => String(s.id) === supplierId) || null;
+    // Convert supplierId to number for comparison if supplier.id is number
+    const selectedId = Number(supplierId);
+    const supplier = this.suppliers.find(s => Number(s.id) === selectedId);
+    this.selectedSupplierDetails = supplier || null;
+    this.currentSupplierId = supplierId; // Keep as string for select value binding
+
     if (this.selectedSupplierDetails) {
-      this.currentProduct.contact = this.selectedSupplierDetails.contact;
-      this.currentProduct.supplier = this.selectedSupplierDetails.name; // Set supplier name for product
+      this.currentProduct.contact = this.selectedSupplierDetails.contact || '';
+      this.currentProduct.supplier = this.selectedSupplierDetails.name || '';
+      this.currentProduct.supplier_id = Number(this.selectedSupplierDetails.id); // Set supplier_id as number
+
+      // Also update the form fields if they're empty or need to be pre-filled
+      if (!this.currentProduct.category) {
+        this.currentProduct.category = this.selectedSupplierDetails.category || '';
+      }
     } else {
       this.currentProduct.contact = '';
       this.currentProduct.supplier = '';
+      this.currentProduct.supplier_id = undefined; // Clear supplier_id
     }
   }
 
   getEmptyProduct(): Products {
     return {
-      id: '',
+      id: undefined, // Set to undefined (or null) for auto-incremented ID
       name: '',
       category: '',
       subcategory: '',
@@ -98,32 +130,40 @@ export class AdminInventoryManagementComponent implements OnInit {
       expiry: '', // YYYY-MM-DD format
       supplier: '', // Supplier name
       contact: '', // Supplier contact
-      status: 'in_stock' // Default stock status
+      supplier_id: undefined, // Initialize supplier_id as undefined
+      action: 'active' // Default action - matches database field
     };
   }
 
   loadProducts() {
-    this.isLoading = true;
-    this.hasError = false;
-    this.errorMessage = '';
-    
-    this.http.get<Products[]>(`${environment.apiUrl}/product/all`, { withCredentials: true })
+    // Fetch ALL products for admin management
+    this.http.get<any[]>(`${environment.apiUrl}/product/all`, { withCredentials: true })
       .subscribe({
         next: (data) => {
+          console.log('Raw data from backend:', data); // Debug log to see exact data structure
           this.products = data.map(p => ({
-            ...p,
-            expiry: p.expiry ? p.expiry.toString().split('T')[0] : '',
-            status: this.determineProductStatus(p)
+            id: p.id, // ID is now a number from DB
+            name: p.name,
+            category: p.category,
+            subcategory: p.subcategory,
+            buyingPrice: Number(p.buying_price || p.buyingPrice || 0), // Handle both snake_case and camelCase
+            sellingPrice: Number(p.selling_price || p.sellingPrice || 0), // Handle both snake_case and camelCase
+            quantity: Number(p.quantity || 0),
+            threshold: Number(p.threshold || 5),
+            expiry: p.expiry ? p.expiry.toString().split('T')[0] : '', // Format expiry date for input type="date"
+            supplier: p.supplier || '',
+            contact: p.contact || '',
+            supplier_id: p.supplier_id, // Map supplier_id
+            action: p.action || 'active', // Use action field from database
+            created_at: p.created_at,
+            updated_at: p.updated_at
           }));
+          console.log('Mapped products for frontend:', this.products); // Debug log to see mapped data
           this.filterProducts();
-          this.isLoading = false;
         },
         error: (err) => {
           console.error('Failed to load products:', err);
-          this.hasError = true;
-          this.errorMessage = err.error?.message || 'Failed to load products.';
-          this.showToast(this.errorMessage, 'error');
-          this.isLoading = false;
+          this.showToast('Failed to load products.', 'error');
         }
       });
   }
@@ -133,7 +173,7 @@ export class AdminInventoryManagementComponent implements OnInit {
       // Category filter (using selectedCategoryFilter)
       if (this.selectedCategoryFilter && product.category !== this.selectedCategoryFilter) return false;
 
-      // Status filter
+      // Stock status filter
       if (this.selectedStatus) {
         const currentStatusText = this.getStatusText(product);
         if (this.selectedStatus === "in_stock" && currentStatusText !== "In Stock") return false;
@@ -141,10 +181,13 @@ export class AdminInventoryManagementComponent implements OnInit {
         if (this.selectedStatus === "out_of_stock" && currentStatusText !== "Out of Stock") return false;
       }
 
+      // Product status filter (active/inactive)
+      if (this.selectedProductStatus && product.action !== this.selectedProductStatus) return false;
+
       // Search term
       if (this.searchTerm &&
           !product.name.toLowerCase().includes(this.searchTerm.toLowerCase()) &&
-          !product.id.toLowerCase().includes(this.searchTerm.toLowerCase()) &&
+          !product.id?.toString().toLowerCase().includes(this.searchTerm.toLowerCase()) && // Convert ID to string for search, make it optional
           !product.category.toLowerCase().includes(this.searchTerm.toLowerCase())) {
         return false;
       }
@@ -214,16 +257,6 @@ export class AdminInventoryManagementComponent implements OnInit {
     }
   }
 
-  determineProductStatus(product: Products): 'in_stock' | 'low_stock' | 'out_of_stock' {
-    if (product.quantity === 0) {
-      return 'out_of_stock';
-    } else if (product.quantity <= product.threshold) {
-      return 'low_stock';
-    } else {
-      return 'in_stock';
-    }
-  }
-
   formatDate(dateString: string) {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
@@ -231,7 +264,18 @@ export class AdminInventoryManagementComponent implements OnInit {
   }
 
   viewProduct(product: Products) {
-    this.selectedProduct = {...product};
+    // Create a deep copy and ensure all required fields have default values
+    this.selectedProduct = {
+      ...product,
+      buyingPrice: product.buyingPrice || 0,
+      sellingPrice: product.sellingPrice || 0,
+      quantity: product.quantity || 0,
+      threshold: product.threshold || 0,
+      expiry: product.expiry ? product.expiry.toString().split('T')[0] : '',
+      supplier: product.supplier || 'N/A',
+      contact: product.contact || 'N/A',
+      supplier_id: product.supplier_id // Include supplier_id in view
+    };
   }
 
   closeProductView() {
@@ -239,13 +283,41 @@ export class AdminInventoryManagementComponent implements OnInit {
   }
 
   openAddProductModal() {
+    // Check if suppliers are loaded
+    if (this.suppliers.length === 0) {
+      this.showToast('Suppliers are not loaded yet. Please wait and try again.', 'error');
+      this.loadSuppliers(); // Try to reload suppliers
+      return;
+    }
+    
     this.currentProduct = this.getEmptyProduct();
+    this.selectedSupplierDetails = null;
+    this.currentSupplierId = ''; // Reset supplier dropdown
     this.isEditing = false;
     this.showProductModal = true;
   }
 
   openEditProductModal(product: Products) {
-    this.currentProduct = {...product};
+    // Ensure expiry is formatted for input type="date"
+    this.currentProduct = {
+      ...product,
+      expiry: product.expiry ? product.expiry.toString().split('T')[0] : '',
+      buyingPrice: product.buyingPrice || 0,
+      sellingPrice: product.sellingPrice || 0,
+      quantity: product.quantity || 0,
+      threshold: product.threshold || 0
+    };
+    
+    // Find and set the selected supplier based on supplier_id
+    if (product.supplier_id) {
+      const matchingSupplier = this.suppliers.find(s => Number(s.id) === Number(product.supplier_id));
+      this.selectedSupplierDetails = matchingSupplier || null;
+      this.currentSupplierId = matchingSupplier?.id.toString() || ''; // Set currentSupplierId for dropdown
+    } else {
+      this.selectedSupplierDetails = null;
+      this.currentSupplierId = '';
+    }
+    
     this.isEditing = true;
     this.showProductModal = true;
   }
@@ -254,158 +326,190 @@ export class AdminInventoryManagementComponent implements OnInit {
     this.showProductModal = false;
   }
 
-  validateProduct(product: Products): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    
-    if (!product.id?.trim()) errors.push('Product ID is required');
-    if (!product.name?.trim()) errors.push('Product name is required');
-    if (!product.category?.trim()) errors.push('Category is required');
-    if (product.buyingPrice <= 0) errors.push('Buying price must be greater than 0');
-    if (product.sellingPrice <= 0) errors.push('Selling price must be greater than 0');
-    if (product.sellingPrice <= product.buyingPrice) errors.push('Selling price must be greater than buying price');
-    if (product.quantity < 0) errors.push('Quantity cannot be negative');
-    if (product.threshold < 0) errors.push('Threshold cannot be negative');
-    if (!product.supplier?.trim()) errors.push('Supplier is required');
-    if (!product.contact?.trim()) errors.push('Contact is required');
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
   submitProductForm() {
-    const validation = this.validateProduct(this.currentProduct);
-    if (!validation.isValid) {
-      this.showToast(validation.errors[0], 'error');
+    // Frontend validation
+    // ID is NOT required for NEW products (auto-incremented)
+    // ID IS required for EDITING products (to identify which product to update)
+    if (this.isEditing && this.currentProduct.id === undefined) {
+        this.showToast('Product ID is missing for editing.', 'error');
+        return;
+    }
+
+    // Detailed validation with specific error messages
+    if (!this.currentProduct.name) {
+      this.showToast('Product name is required.', 'error');
       return;
     }
 
-    this.isLoading = true;
-    const productPayload = {
-      id: this.currentProduct.id.trim(),
-      name: this.currentProduct.name.trim(),
-      category: this.currentProduct.category.trim(),
-      subcategory: this.currentProduct.subcategory?.trim() || '',
-      buying_price: this.currentProduct.buyingPrice,
-      selling_price: this.currentProduct.sellingPrice,
-      quantity: this.currentProduct.quantity,
-      threshold: this.currentProduct.threshold,
-      expiry: this.currentProduct.expiry || null,
-      supplier: this.currentProduct.supplier.trim(),
-      contact: this.currentProduct.contact.trim(),
-      status: this.determineProductStatus(this.currentProduct)
+    if (!this.currentProduct.category) {
+      this.showToast('Product category is required.', 'error');
+      return;
+    }
+
+    if (this.currentProduct.buyingPrice === undefined || this.currentProduct.buyingPrice <= 0) {
+      this.showToast('Buying price must be greater than 0.', 'error');
+      return;
+    }
+
+    if (this.currentProduct.sellingPrice === undefined || this.currentProduct.sellingPrice <= 0) {
+      this.showToast('Selling price must be greater than 0.', 'error');
+      return;
+    }
+
+    if (this.currentProduct.quantity === undefined || this.currentProduct.quantity < 0) {
+      this.showToast('Quantity cannot be negative.', 'error');
+      return;
+    }
+
+    if (this.currentProduct.threshold === undefined || this.currentProduct.threshold < 0) {
+      this.showToast('Threshold cannot be negative.', 'error');
+      return;
+    }
+
+    if (this.currentProduct.supplier_id === undefined || this.currentProduct.supplier_id === null) {
+      this.showToast('Please select a supplier. This field is required.', 'error');
+      return;
+    }
+
+    // Prepare payload for backend (match backend's expected snake_case)
+    const productPayload: any = { // Use 'any' to dynamically add/remove ID
+      name: this.currentProduct.name,
+      category: this.currentProduct.category,
+      subcategory: this.currentProduct.subcategory,
+      buying_price: Number(this.currentProduct.buyingPrice),
+      selling_price: Number(this.currentProduct.sellingPrice),
+      quantity: Number(this.currentProduct.quantity),
+      threshold: Number(this.currentProduct.threshold),
+      expiry: this.currentProduct.expiry || null, // Send null if empty
+      supplier: this.currentProduct.supplier,
+      contact: this.currentProduct.contact,
+      supplier_id: this.currentProduct.supplier_id // Always send supplier_id
     };
 
+    // ONLY include ID in payload if we are editing
+    if (this.isEditing) {
+      productPayload.id = this.currentProduct.id;
+    }
+
+    console.log('Sending product payload:', productPayload); // Debug log
 
     if (this.isEditing) {
+      // Update product via backend
       this.http.put(`${environment.apiUrl}/product/${this.currentProduct.id}`, productPayload, { withCredentials: true })
         .subscribe({
           next: (response: any) => {
             if (response.message === 'Product updated successfully') {
               this.showToast('Product updated successfully!', 'success');
-              this.loadProducts();
+              this.loadProducts(); // Reload products after update
               this.showProductModal = false;
             } else {
               this.showToast(response.message || 'Failed to update product.', 'error');
             }
-            this.isLoading = false;
           },
           error: (err) => {
             console.error('Update product failed:', err);
-            const errorMessage = err.error?.message || 
-              (err.status === 404 ? 'Product not found.' :
-               err.status === 403 ? 'Not authorized to update product.' :
-               'Server error occurred during product update.');
-            this.showToast(errorMessage, 'error');
-            this.isLoading = false;
+            this.showToast(err.error?.message || 'Server error occurred during product update.', 'error');
           }
         });
     } else {
+      // Add product via backend
+      // No ID passed in the URL for ADD
       this.http.post(`${environment.apiUrl}/product/add`, productPayload, { withCredentials: true })
         .subscribe({
           next: (response: any) => {
             if (response.message === 'Product added successfully') {
               this.showToast('Product added successfully!', 'success');
-              this.loadProducts();
+              this.loadProducts(); // Reload products after add
               this.showProductModal = false;
-              this.currentProduct = this.getEmptyProduct(); // Reset form
             } else {
               this.showToast(response.message || 'Failed to add product.', 'error');
             }
-            this.isLoading = false;
           },
           error: (err) => {
             console.error('Add product failed:', err);
-            const errorMessage = err.error?.message || 
-              (err.status === 409 ? 'Product ID already exists.' :
-               err.status === 403 ? 'Not authorized to add products.' :
-               'Server error occurred during product add.');
-            this.showToast(errorMessage, 'error');
-            this.isLoading = false;
+            this.showToast(err.error?.message || 'Server error occurred during product add.', 'error');
           }
         });
     }
   }
 
-  confirmDelete(product: Products) {
-    this.productToDelete = product;
-  }
+  // ... (rest of the methods remain unchanged)
+  activateProduct(product: Products) {
+    if (!product || product.id === undefined) return; // Use product.id directly
 
-  closeDeleteModal() {
-    this.productToDelete = null;
-  }
-
-  // Changed from deleteProduct to deactivateProduct (soft delete)
-  deactivateProduct() {
-    if (!this.productToDelete || !this.productToDelete.id) return;
-
-    this.http.delete(`${environment.apiUrl}/product/${this.productToDelete.id}`, { withCredentials: true })
+    this.http.put(`${environment.apiUrl}/product/activate/${product.id}`, {}, { withCredentials: true })
       .subscribe({
         next: (response: any) => {
-          if (response.message === 'Product deactivated successfully') { // Check for backend's new message
-            this.showToast('Product deactivated successfully!', 'success');
-            this.loadProducts(); // Reload products after deactivate
-            this.productToDelete = null;
-            this.selectedProduct = null;
+          if (response.message === 'Product activated successfully') {
+            this.showToast('Product activated successfully!', 'success');
+            this.loadProducts();
           } else {
-            this.showToast(response.message || 'Failed to deactivate product.', 'error');
+            this.showToast(response.message || 'Failed to activate product.', 'error');
           }
         },
         error: (err) => {
-          console.error('Deactivate product failed:', err);
-          this.showToast(err.error?.message || 'Server error occurred during product deactivation.', 'error');
+          console.error('Activate product failed:', err);
+          this.showToast(err.error?.message || 'Server error occurred during product activation.', 'error');
         }
       });
   }
 
+  toggleProductStatus(product: Products) {
+    if (product.id === undefined) return; // Ensure product.id exists
+
+    if (product.action === 'active') {
+      // Deactivate the product
+      this.http.delete(`${environment.apiUrl}/product/${product.id}`, { withCredentials: true })
+        .subscribe({
+          next: (response: any) => {
+            this.showToast('Product deactivated successfully!', 'success');
+            this.loadProducts();
+            // Close the product view modal if it's open
+            if (this.selectedProduct && this.selectedProduct.id === product.id) {
+              this.selectedProduct = null;
+            }
+          },
+          error: (err) => {
+            console.error('Deactivate product failed:', err);
+            this.showToast(err.error?.message || 'Failed to deactivate product.', 'error');
+          }
+        });
+    } else {
+      // Activate the product
+      this.activateProduct(product);
+      // Close the product view modal if it's open
+      if (this.selectedProduct && this.selectedProduct.id === product.id) {
+        this.selectedProduct = null;
+      }
+    }
+  }
+
   resetFilters() {
     this.searchTerm = '';
-    this.selectedCategoryFilter = ''; // Use the renamed filter variable
+    this.selectedCategoryFilter = '';
     this.selectedSubcategory = '';
     this.selectedStatus = '';
+    this.selectedProductStatus = '';
     this.startDate = '';
     this.endDate = '';
-    this.filterProducts(); // Call filterProducts to reset filtered list
+    this.filterProducts();
     this.currentPage = 1;
   }
 
   getStockWidth(product: Products) {
-    if (product.threshold <= 0) return 0;
+    if (product.threshold === undefined || product.threshold <= 0) return 0; // Handle undefined threshold
     const percentage = (product.quantity / product.threshold) * 100;
     return Math.min(percentage, 100);
   }
 
-  trackByProductId(index: number, product: Products): string {
-    return product.id;
+  trackByProductId(index: number, product: Products): number | undefined { // trackBy function should return type of id
+    return product.id; // Return number or undefined
   }
 
-  // Get only active category names for product form dropdown
   getUniqueCategories(): string[] {
     return this.categories.filter(cat => cat.action === 'active').map(cat => cat.name);
   }
 
-  // Load all categories from backend for management
   loadCategories() {
     this.http.get<Category[]>(`${environment.apiUrl}/category`, { withCredentials: true })
       .subscribe({
@@ -421,7 +525,7 @@ export class AdminInventoryManagementComponent implements OnInit {
 
   openCategoryModal() {
     this.showCategoryModal = true;
-    this.newCategoryName = ''; // Clear input when opening
+    this.newCategoryName = '';
   }
 
   closeCategoryModal() {
@@ -446,7 +550,7 @@ export class AdminInventoryManagementComponent implements OnInit {
         next: (response: any) => {
           this.showToast('Category added successfully!', 'success');
           this.newCategoryName = '';
-          this.loadCategories(); // Reload categories from backend
+          this.loadCategories();
         },
         error: (err) => {
           console.error('Add category failed:', err);
@@ -455,11 +559,11 @@ export class AdminInventoryManagementComponent implements OnInit {
       });
   }
 
-  confirmDeactivateCategory(category: Category) { // Changed name to reflect soft delete
+  confirmDeactivateCategory(category: Category) {
     this.categoryToDelete = category;
   }
 
-  deactivateCategory() { // Renamed from deleteCategory
+  deactivateCategory() {
     if (!this.categoryToDelete || this.categoryToDelete.id === undefined) return;
 
     this.http.put(`${environment.apiUrl}/category/deactivate/${this.categoryToDelete.id}`, {}, { withCredentials: true })
@@ -478,7 +582,7 @@ export class AdminInventoryManagementComponent implements OnInit {
       });
   }
 
-  activateCategory(category: Category) { // NEW method to activate category
+  activateCategory(category: Category) {
     if (category.id === undefined) return;
 
     this.http.put(`${environment.apiUrl}/category/activate/${category.id}`, {}, { withCredentials: true })
@@ -496,7 +600,7 @@ export class AdminInventoryManagementComponent implements OnInit {
       });
   }
 
-  showToast(message: string, type: 'success' | 'error' | 'warning' | 'info') { // Added 'info' type
+  showToast(message: string, type: 'success' | 'error' | 'warning' | 'info') {
     this.toastMessage = message;
     switch(type) {
       case 'success':
@@ -507,11 +611,11 @@ export class AdminInventoryManagementComponent implements OnInit {
         this.toastClass = 'bg-red-100 text-red-800';
         this.toastIcon = 'fas fa-exclamation-circle text-red-500';
         break;
-      case 'warning': // Added warning toast style
+      case 'warning':
         this.toastClass = 'bg-yellow-100 text-yellow-800';
         this.toastIcon = 'fas fa-exclamation-triangle text-yellow-500';
         break;
-      case 'info': // Added info toast style
+      case 'info':
         this.toastClass = 'bg-blue-100 text-blue-800';
         this.toastIcon = 'fas fa-info-circle text-blue-500';
         break;
@@ -521,11 +625,6 @@ export class AdminInventoryManagementComponent implements OnInit {
       this.toastMessage = '';
     }, 3000);
   }
-
-  // Ensure exportToPDF has jsPDF and autoTable imported or declared globally if using them.
-  // For jsPDF, you might need to add these scripts to your index.html or angular.json scripts array
-  // <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  // <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   exportToExcel() {
     const data = this.filteredProducts.map(product => ({
@@ -538,9 +637,10 @@ export class AdminInventoryManagementComponent implements OnInit {
       'Quantity': product.quantity,
       'Threshold': product.threshold,
       'Status': this.getStatusText(product),
-      'Expiry Date': this.formatDate(product.expiry),
+      'Expiry Date': this.formatDate(product.expiry ?? ''),
       'Supplier': product.supplier,
-      'Contact': product.contact
+      'Contact': product.contact,
+      'Supplier ID': product.supplier_id // Include in export
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -549,45 +649,4 @@ export class AdminInventoryManagementComponent implements OnInit {
     XLSX.writeFile(workbook, 'Inventory_Report.xlsx');
     this.showToast('Excel exported successfully!', 'success');
   }
-
-  // exportToPDF() { // Uncomment and use if jsPDF is properly configured
-  //   const doc = new jsPDF();
-  //   const title = 'Inventory Report';
-  //   const headers = [
-  //     ['ID', 'Name', 'Category', 'Price', 'Stock', 'Status', 'Expiry']
-  //   ];
-
-  //   const data = this.filteredProducts.map(product => [
-  //     product.id,
-  //     product.name,
-  //     product.category,
-  //     '₹' + product.sellingPrice.toFixed(2),
-  //     product.quantity,
-  //     this.getStatusText(product),
-  //     this.formatDate(product.expiry)
-  //   ]);
-
-  //   (doc as any).autoTable({
-  //     head: headers,
-  //     body: data,
-  //     startY: 20,
-  //     theme: 'grid',
-  //     headStyles: {
-  //       fillColor: [41, 128, 185],
-  //       textColor: 255,
-  //       fontStyle: 'bold'
-  //     },
-  //     alternateRowStyles: {
-  //       fillColor: [245, 245, 245]
-  //     },
-  //     margin: { top: 30 }
-  //   });
-
-  //   doc.text(title, 14, 15);
-  //   doc.save('Inventory_Report.pdf');
-  //   this.showToast('PDF exported successfully!', 'success');
-  // }
 }
-
-// declare const jsPDF: any; // Uncomment if using jsPDF
-// declare const autoTable: any; // Uncomment if using jsPDF

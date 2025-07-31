@@ -15,6 +15,19 @@
             </h1>
             </div>
 
+            <!-- Debug Panel (for development)
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <h3 class="font-semibold text-yellow-800 mb-2">Debug Info</h3>
+            <div class="text-sm text-yellow-700">
+                <p><strong>API URL:</strong> {{ getApiUrl() }}</p>
+                <p><strong>Invoices Loaded:</strong> {{ invoiceData.length }}</p>
+                <p><strong>Filtered Invoices:</strong> {{ filteredInvoices.length }}</p>
+                <p><strong>Paginated Invoices:</strong> {{ paginatedInvoices.length }}</p>
+                <p><strong>Current Page:</strong> {{ currentPage }} of {{ totalPages }}</p>
+                <p><strong>Authentication:</strong> Using withCredentials: true</p>
+            </div>
+            </div> -->
+
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="bg-white p-6 rounded-xl shadow-md card-hover transition">
@@ -105,6 +118,18 @@
                 <button (click)="resetFilters()" class="mt-auto bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md transition">
                     <i class="fas fa-sync-alt mr-2"></i>Reset
                 </button>
+                <button (click)="downloadAllInvoicesZip()" class="mt-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition">
+                    <i class="fas fa-download mr-2"></i>Bulk CSV
+                </button>
+                <!-- <button (click)="testUserAndApi()" class="mt-auto bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md transition">
+                    <i class="fas fa-bug mr-2"></i>Test API
+                </button>
+                <button (click)="fetchInvoicesWithFallback()" class="mt-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition">
+                    <i class="fas fa-shield-alt mr-2"></i>Force Reload
+                </button> -->
+                <button (click)="refreshInvoices()" class="mt-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition">
+                    <i class="fas fa-refresh mr-2"></i>Refresh
+                </button>
                 </div>
             </div>
             </div>
@@ -126,29 +151,62 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
+                    <tr *ngIf="paginatedInvoices.length === 0">
+                    <td colspan="8" class="p-8 text-center text-gray-500">
+                        <div class="flex flex-col items-center">
+                        <i class="fas fa-file-invoice text-4xl text-gray-300 mb-4"></i>
+                        <p class="text-lg font-medium">No invoices found</p>
+                        <p class="text-sm">Invoices will appear here after you confirm orders as a supplier.</p>
+                        <p class="text-sm mt-2">Try confirming some orders in the <strong>Supplier Orders</strong> section first.</p>
+                        </div>
+                    </td>
+                    </tr>
                     <tr *ngFor="let invoice of paginatedInvoices" class="highlight-row">
-                    <td class="p-4 font-medium text-blue-600">{{ invoice.id }}</td>
-                    <td class="p-4">{{ invoice.customer }}</td>
-                    <td class="p-4">{{ invoice.order }}</td>
-                    <td class="p-4 invoice-date">{{ invoice.date }}</td>
-                    <td class="p-4 due-date">{{ invoice.dueDate }}</td>
-                    <td class="p-4 font-medium">{{ invoice.amount | currency:'INR' }}</td>
+                    <td class="p-4 font-medium text-blue-600">{{ invoice.invoice_id }}</td>
+                    <td class="p-4">{{ invoice.supplierName }}</td>
+                    <td class="p-4">{{ invoice.order_id }}</td>
+                    <td class="p-4 invoice-date">{{ formatDate(invoice.invoiceDate) }}</td>
+                    <td class="p-4 due-date">{{ formatDate(invoice.dueDate) }}</td>
+                    <td class="p-4 font-medium">{{ formatCurrency(invoice.amount) }}</td>
                     <td class="p-4">
-                        <span class="status-badge" [ngClass]="{
-                        'bg-green-100 text-green-800': invoice.status === 'paid',
-                        'bg-yellow-100 text-yellow-800': invoice.status === 'pending',
-                        'bg-red-100 text-red-800': invoice.status === 'overdue',
-                        'bg-gray-100 text-gray-800': invoice.status === 'cancelled'
-                        }">
-                        {{ getStatusText(invoice.status) }}
+                        <span class="status-badge" [ngClass]="getStatusClass(invoice.invoiceStatus)">
+                        {{ getStatusText(invoice.invoiceStatus) }}
                         </span>
                     </td>
-                    <td class="p-4 space-x-2 flex justify-end">
-                        <button class="bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200" (click)="viewInvoice(invoice.id)">
-                        <i class="fas fa-eye mr-1"></i>View
+                    <td class="p-4 space-x-1 flex justify-end">
+                        <!-- View Button -->
+                        <button class="bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200 transition" 
+                                (click)="viewInvoice(invoice.invoice_id)"
+                                title="View Invoice Details">
+                            <i class="fas fa-eye"></i>
                         </button>
-                        <button class="bg-purple-100 text-purple-800 px-3 py-1 rounded hover:bg-purple-200" (click)="downloadInvoice(invoice.id)">
-                        <i class="fas fa-download mr-1"></i>Download
+                        
+                        <!-- Print Button -->
+                        <button class="bg-gray-100 text-gray-800 px-2 py-1 rounded hover:bg-gray-200 transition" 
+                                (click)="quickPrintInvoice(invoice)"
+                                title="Print Invoice">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        
+                        <!-- Download PDF Button -->
+                        <button class="bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200 transition" 
+                                (click)="quickDownloadPDF(invoice)"
+                                title="Download PDF">
+                            <i class="fas fa-file-pdf"></i>
+                        </button>
+                        
+                        <!-- Download Excel Button -->
+                        <button class="bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 transition" 
+                                (click)="quickDownloadExcel(invoice)"
+                                title="Download Excel">
+                            <i class="fas fa-file-excel"></i>
+                        </button>
+                        
+                        <!-- Email Button -->
+                        <button class="bg-purple-100 text-purple-800 px-2 py-1 rounded hover:bg-purple-200 transition" 
+                                (click)="quickEmailInvoice(invoice)"
+                                title="Email Invoice">
+                            <i class="fas fa-envelope"></i>
                         </button>
                     </td>
                     </tr>
@@ -186,17 +244,41 @@
             <!-- Modal Header -->
             <div class="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
             <h2 class="text-2xl font-bold text-gray-800">
-                <i class="fas fa-file-invoice mr-2 text-blue-500"></i>Invoice #{{ selectedInvoice.id }}
+                <i class="fas fa-file-invoice mr-2 text-blue-500"></i>Invoice #{{ selectedInvoice.invoice_id }}
             </h2>
-            <div class="flex space-x-3">
-                <button class="text-gray-500 hover:text-blue-500" (click)="printInvoice()">
-                <i class="fas fa-print"></i>
+            <div class="flex space-x-2">
+                <!-- Print Button -->
+                <button (click)="printInvoice()" 
+                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition flex items-center space-x-2">
+                    <i class="fas fa-print"></i>
+                    <span class="hidden sm:inline">Print</span>
                 </button>
-                <button class="text-gray-500 hover:text-blue-500" (click)="downloadCurrentInvoice()">
-                <i class="fas fa-download"></i>
+                
+                <!-- Download PDF Button -->
+                <button (click)="downloadInvoicePDF()" 
+                        class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg transition flex items-center space-x-2">
+                    <i class="fas fa-file-pdf"></i>
+                    <span class="hidden sm:inline">PDF</span>
                 </button>
-                <button (click)="closeInvoiceModal()" class="text-gray-500 hover:text-red-500">
-                <i class="fas fa-times"></i>
+                
+                <!-- Download Excel Button -->
+                <button (click)="downloadInvoiceExcel()" 
+                        class="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded-lg transition flex items-center space-x-2">
+                    <i class="fas fa-file-excel"></i>
+                    <span class="hidden sm:inline">Excel</span>
+                </button>
+                
+                <!-- Email Button -->
+                <button (click)="emailInvoice()" 
+                        class="bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2 rounded-lg transition flex items-center space-x-2">
+                    <i class="fas fa-envelope"></i>
+                    <span class="hidden sm:inline">Email</span>
+                </button>
+                
+                <!-- Close Button -->
+                <button (click)="closeInvoiceModal()" 
+                        class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
             </div>
@@ -222,7 +304,7 @@
                 </div>
                 <div class="bg-gray-50 p-4 rounded-lg">
                 <h4 class="font-bold text-lg mb-2">Bill To:</h4>
-                <div [innerHTML]="getClientInfo(selectedInvoice.customer)"></div>
+                <div [innerHTML]="getClientInfo(selectedInvoice)"></div>
                 </div>
             </div>
 
@@ -230,19 +312,19 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div>
                 <p class="text-sm text-gray-500">Invoice Number</p>
-                <p class="font-medium">#{{ selectedInvoice.id }}</p>
+                <p class="font-medium">#{{ selectedInvoice.invoice_id }}</p>
                 </div>
                 <div>
                 <p class="text-sm text-gray-500">Order Number</p>
-                <p class="font-medium">{{ selectedInvoice.order }}</p>
+                <p class="font-medium">{{ selectedInvoice.order_id }}</p>
                 </div>
                 <div>
                 <p class="text-sm text-gray-500">Invoice Date</p>
-                <p class="font-medium">{{ selectedInvoice.date | date:'dd/MM/yyyy' }}</p>
+                <p class="font-medium">{{ formatDate(selectedInvoice.invoiceDate) }}</p>
                 </div>
                 <div>
                 <p class="text-sm text-gray-500">Due Date</p>
-                <p class="font-medium">{{ selectedInvoice.dueDate | date:'dd/MM/yyyy' }}</p>
+                <p class="font-medium">{{ formatDate(selectedInvoice.dueDate) }}</p>
                 </div>
             </div>
 
@@ -251,27 +333,20 @@
                 <table class="w-full border-collapse">
                 <thead>
                     <tr class="bg-gray-100">
-                    <th class="p-3 text-left text-sm font-medium text-gray-700">Item</th>
-                    <th class="p-3 text-left text-sm font-medium text-gray-700">Description</th>
+                    <th class="p-3 text-left text-sm font-medium text-gray-700">Product ID</th>
+                    <th class="p-3 text-left text-sm font-medium text-gray-700">Product Name</th>
                     <th class="p-3 text-left text-sm font-medium text-gray-700">Qty</th>
-                    <th class="p-3 text-left text-sm font-medium text-gray-700">Unit Price</th>
+                    <th class="p-3 text-left text-sm font-medium text-gray-700">Category</th>
                     <th class="p-3 text-left text-sm font-medium text-gray-700">Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="border-b">
-                    <td class="p-3">PRD-001</td>
-                    <td class="p-3">Maggi Noodles</td>
-                    <td class="p-3">43 Packets</td>
-                    <td class="p-3">{{ 100.14 | currency:'INR' }}</td>
-                    <td class="p-3">{{ 4306 | currency:'INR' }}</td>
-                    </tr>
-                    <tr class="border-b">
-                    <td class="p-3">-</td>
-                    <td class="p-3">Shipping & Handling</td>
-                    <td class="p-3">1</td>
-                    <td class="p-3">{{ 250 | currency:'INR' }}</td>
-                    <td class="p-3">{{ 250 | currency:'INR' }}</td>
+                    <td class="p-3">{{ selectedInvoice.product_id }}</td>
+                    <td class="p-3">{{ selectedInvoice.productName }}</td>
+                    <td class="p-3">{{ selectedInvoice.quantity }} {{ selectedInvoice.unit }}</td>
+                    <td class="p-3">{{ selectedInvoice.productCategory }}</td>
+                    <td class="p-3">{{ formatCurrency(selectedInvoice.orderValue) }}</td>
                     </tr>
                 </tbody>
                 </table>
@@ -281,20 +356,16 @@
             <div class="flex justify-end">
                 <div class="w-full md:w-1/3">
                 <div class="flex justify-between py-2">
-                    <span class="text-gray-600">Subtotal:</span>
-                    <span class="font-medium">{{ 4306 | currency:'INR' }}</span>
-                </div>
-                <div class="flex justify-between py-2">
-                    <span class="text-gray-600">Shipping:</span>
-                    <span class="font-medium">{{ 250 | currency:'INR' }}</span>
+                    <span class="text-gray-600">Order Value:</span>
+                    <span class="font-medium">{{ formatCurrency(selectedInvoice.orderValue) }}</span>
                 </div>
                 <div class="flex justify-between py-2">
                     <span class="text-gray-600">Tax (18%):</span>
-                    <span class="font-medium">{{ 819.72 | currency:'INR' }}</span>
+                    <span class="font-medium">{{ formatCurrency(selectedInvoice.amount - selectedInvoice.orderValue) }}</span>
                 </div>
                 <div class="flex justify-between py-3 border-t border-gray-200 mt-2">
-                    <span class="text-lg font-bold">Total:</span>
-                    <span class="text-lg font-bold">{{ selectedInvoice.amount | currency:'INR' }}</span>
+                    <span class="text-lg font-bold">Total Amount:</span>
+                    <span class="text-lg font-bold">{{ formatCurrency(selectedInvoice.amount) }}</span>
                 </div>
                 </div>
             </div>

@@ -13,8 +13,8 @@ router.post('/create', async (req, res) => { //
 
     // Step 1: Insert into users table
     const [userResult] = await pool.execute( //
-      'INSERT INTO users (email, password, role, name) VALUES (?, ?, ?, ?)', // Added 'name' to users table insert
-      [email, hashedPassword, 'admin', name] // Added 'name'
+      'INSERT INTO users (email, password, role) VALUES (?, ?, ?)', // Users table only has email, password, role
+      [email, hashedPassword, 'admin'] // Removed name
     );
     const userId = userResult.insertId; //
 

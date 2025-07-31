@@ -32,15 +32,43 @@ export class AdminSupplierComponent implements OnInit {
   constructor(private http: HttpClient) { } // <--- Changed constructor
 
   ngOnInit() { //
+    console.log('Component initialized, loading suppliers...'); // Debug log
     this.loadSuppliers(); //
   }
 
   loadSuppliers() { //
     // Fetch suppliers from backend
-    this.http.get<Supplier[]>(`${environment.apiUrl}/supplier/`, { withCredentials: true }) // Assuming GET /supplier for list
+    this.http.get<any[]>(`${environment.apiUrl}/supplier/`, { withCredentials: true }) // Assuming GET /supplier for list
       .subscribe({
         next: (data) => {
-          this.allSuppliers = data.map(s => ({ ...s, dateAdded: s.dateAdded ? new Date(s.dateAdded) : undefined })); // Convert date string to Date object
+          console.log('Raw data from backend:', data); // Debug log
+          
+          if (!data || !Array.isArray(data)) {
+            console.error('Invalid data received from backend:', data);
+            this.showToastMessage('Invalid data received from server.', 'error');
+            return;
+          }
+          
+          this.allSuppliers = data.map((s, index) => {
+            console.log(`Processing supplier ${index}:`, s); // Debug each supplier
+            
+            return {
+              id: s.id?.toString() || '',
+              name: s.name || '',
+              product: s.product || '',
+              category: s.category || '',
+              price: Number(s.price) || 0,
+              contact: s.contact || '',
+              email: s.email || '',
+              returnPolicy: s.returnPolicy || 'no',
+              dateAdded: s.dateAdded ? new Date(s.dateAdded) : (s.created_at ? new Date(s.created_at) : undefined),
+              status: s.status || 'active',
+              comments: s.comments || '',
+              password: '' // Don't store password in frontend
+            } as Supplier;
+          }); 
+          
+          console.log('Processed suppliers:', this.allSuppliers); // Debug processed data
           this.filterSuppliers(); // Apply initial filter (which just copies allSuppliers if searchTerm is empty)
         },
         error: (err) => {
@@ -94,7 +122,33 @@ export class AdminSupplierComponent implements OnInit {
   }
 
   showViewForm(supplier: Supplier) { //
-    this.selectedSupplier = { ...supplier }; //
+    console.log('Viewing supplier:', supplier); // Debug log
+    console.log('Supplier properties:', Object.keys(supplier)); // Debug log
+    console.log('Supplier values:', Object.values(supplier)); // Debug log
+    
+    if (!supplier || !supplier.id) {
+      console.error('Invalid supplier data for view:', supplier);
+      this.showToastMessage('Invalid supplier data.', 'error');
+      return;
+    }
+    
+    // Create a deep copy with all properties properly set
+    this.selectedSupplier = { 
+      id: supplier.id?.toString() || '',
+      name: supplier.name || '',
+      product: supplier.product || '',
+      category: supplier.category || '',
+      price: Number(supplier.price) || 0,
+      contact: supplier.contact || '',
+      email: supplier.email || '',
+      returnPolicy: supplier.returnPolicy || 'no',
+      dateAdded: supplier.dateAdded,
+      status: supplier.status || 'active',
+      comments: supplier.comments || '',
+      password: '' // Don't show password in view
+    }; 
+    
+    console.log('Selected supplier for view:', this.selectedSupplier); // Debug log
     this.currentView = 'view'; //
     this.isEditMode = false; //
   }
@@ -180,7 +234,33 @@ export class AdminSupplierComponent implements OnInit {
   }
 
   editSupplier(supplier: Supplier) { //
-    this.selectedSupplier = { ...supplier }; //
+    console.log('Editing supplier:', supplier); // Debug log
+    console.log('Supplier properties:', Object.keys(supplier)); // Debug log
+    console.log('Supplier values:', Object.values(supplier)); // Debug log
+    
+    if (!supplier || !supplier.id) {
+      console.error('Invalid supplier data for edit:', supplier);
+      this.showToastMessage('Invalid supplier data.', 'error');
+      return;
+    }
+    
+    // Create a deep copy with all properties properly set
+    this.selectedSupplier = { 
+      id: supplier.id?.toString() || '',
+      name: supplier.name || '',
+      product: supplier.product || '',
+      category: supplier.category || '',
+      price: Number(supplier.price) || 0,
+      contact: supplier.contact || '',
+      email: supplier.email || '',
+      returnPolicy: supplier.returnPolicy || 'no',
+      dateAdded: supplier.dateAdded,
+      status: supplier.status || 'active',
+      comments: supplier.comments || '',
+      password: '' // Don't pre-fill password for security
+    }; 
+    
+    console.log('Selected supplier for edit:', this.selectedSupplier); // Debug log
     this.currentView = 'edit'; //
     this.isEditMode = true; //
   }
@@ -243,6 +323,9 @@ export class AdminSupplierComponent implements OnInit {
         this.showToastMessage('Supplier ID is missing for update.', 'error');
         return;
       }
+      
+      console.log('Updating supplier with data:', this.selectedSupplier); // Debug log
+      
       const updatedSupplierPayload = {
         name: this.selectedSupplier.name,
         product: this.selectedSupplier.product,
@@ -251,14 +334,17 @@ export class AdminSupplierComponent implements OnInit {
         contact: this.selectedSupplier.contact,
         email: this.selectedSupplier.email,
         returnPolicy: this.selectedSupplier.returnPolicy,
-        status: this.selectedSupplier.status, // Include status
-        comments: this.selectedSupplier.comments // Include comments
+        status: this.selectedSupplier.status || 'active', // Ensure status has a value
+        comments: this.selectedSupplier.comments || '' // Ensure comments has a value
         // Password is not updated via this form normally, so exclude it
       };
+
+      console.log('Sending update payload:', updatedSupplierPayload); // Debug log
 
       this.http.put(`${environment.apiUrl}/supplier/${this.selectedSupplier.id}`, updatedSupplierPayload, { withCredentials: true }) // Assuming PUT /supplier/:id for update
         .subscribe({
           next: (response: any) => {
+            console.log('Update response:', response); // Debug log
             if (response.message === 'Supplier updated successfully') { // Check response message
               this.showToastMessage('Supplier updated successfully!', 'success'); //
               this.loadSuppliers();

@@ -1,12 +1,12 @@
 export interface SalesPerson {
-  id: string; // Backend-generated ID
+  id: string | number; // Backend returns number, frontend sometimes uses string
   name: string;
   contact: string;
   email: string;
   salesTarget?: number;
   currentSales?: number;
   performanceRating?: number;
-  dateAdded?: Date; // Optional, as backend adds this
+  dateAdded?: Date | string; // Can be Date object or string from backend
 
   // Added for creation via admin panel
   password?: string; // Needed for 'create'

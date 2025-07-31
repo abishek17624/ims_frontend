@@ -1,6 +1,55 @@
 <div class="bg-gray-100 min-h-screen p-6">
   <div class="w-[1200px] mx-auto">
-    <h1 class="text-3xl font-bold text-center mb-6">Content Management</h1>
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">Content Management</h1>
+      <div class="flex gap-3">
+        <button 
+          (click)="refreshContent()" 
+          class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+          [disabled]="isLoading || isSaving"
+        >
+          {{ isLoading ? 'Loading...' : 'Refresh' }}
+        </button>
+        <button 
+          (click)="saveChanges()" 
+          class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+          [disabled]="isLoading || isSaving"
+        >
+          {{ isSaving ? 'Saving...' : 'Save All Changes' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Help Banner -->
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+      <div class="flex">
+        <div class="ml-3">
+          <p class="text-sm text-blue-700">
+            <strong>💡 Quick Tips:</strong> 
+            • Use individual "Save" buttons to update specific fields instantly 
+            • Press Enter while typing to save a field quickly 
+            • Auto-save activates after 2 seconds of no typing 
+            • Look for ✓ or ✗ icons to see save status
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div *ngIf="isLoading" class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
+      <div class="flex items-center">
+        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2"></div>
+        Loading content from database...
+      </div>
+    </div>
+
+    <!-- Saving Indicator -->
+    <div *ngIf="isSaving" class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+      <div class="flex items-center">
+        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-700 mr-2"></div>
+        Saving changes to database...
+      </div>
+    </div>
 
     <!-- Tabs -->
     <div class="flex border-b mb-6">
@@ -33,51 +82,150 @@
       <div *ngIf="activeTab === 'home'">
         <h2 class="text-2xl font-bold mb-4">Home Page Content</h2>
         
+        <!-- Main Title Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">Main Title:</label>
-          <input 
-            type="text" 
-            [(ngModel)]="contentData.home.title" 
-            class="border p-3 rounded-lg w-full"
-          >
+          <div class="flex gap-2 items-center">
+            <input 
+              type="text" 
+              [(ngModel)]="contentData.home.title" 
+              class="border p-3 rounded-lg flex-1"
+              (keypress)="onFieldKeyPress($event, 'home', 'title')"
+              (input)="onFieldInput('home', 'title')"
+              [disabled]="isFieldSaving('home_title')"
+            >
+            <button 
+              (click)="updateHomeField('title')"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[80px]"
+              [disabled]="isFieldSaving('home_title')"
+            >
+              <span *ngIf="!isFieldSaving('home_title')">Save</span>
+              <span *ngIf="isFieldSaving('home_title')" class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                <span class="text-xs">...</span>
+              </span>
+            </button>
+            <!-- Status Indicator -->
+            <div class="w-6 h-6 flex items-center justify-center">
+              <div *ngIf="isFieldSuccess('home_title')" class="text-green-500 text-lg">✓</div>
+              <div *ngIf="isFieldError('home_title')" class="text-red-500 text-lg">✗</div>
+            </div>
+          </div>
         </div>
         
+        <!-- Subtitle Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">Subtitle:</label>
-          <textarea 
-            [(ngModel)]="contentData.home.subtitle" 
-            class="border p-3 rounded-lg w-full" 
-            rows="3"
-          ></textarea>
+          <div class="flex gap-2 items-start">
+            <textarea 
+              [(ngModel)]="contentData.home.subtitle" 
+              class="border p-3 rounded-lg flex-1" 
+              rows="3"
+              (keypress)="onFieldKeyPress($event, 'home', 'subtitle')"
+              (input)="onFieldInput('home', 'subtitle')"
+              [disabled]="isFieldSaving('home_subtitle')"
+            ></textarea>
+            <div class="flex flex-col gap-2">
+              <button 
+                (click)="updateHomeField('subtitle')"
+                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[80px]"
+                [disabled]="isFieldSaving('home_subtitle')"
+              >
+                <span *ngIf="!isFieldSaving('home_subtitle')">Save</span>
+                <span *ngIf="isFieldSaving('home_subtitle')" class="flex items-center">
+                  <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                  <span class="text-xs">...</span>
+                </span>
+              </button>
+              <!-- Status Indicator -->
+              <div class="w-6 h-6 flex items-center justify-center">
+                <div *ngIf="isFieldSuccess('home_subtitle')" class="text-green-500 text-lg">✓</div>
+                <div *ngIf="isFieldError('home_subtitle')" class="text-red-500 text-lg">✗</div>
+              </div>
+            </div>
+          </div>
         </div>
         
+        <!-- Button Text Fields -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label class="block text-gray-700 mb-2">Button 1 Text:</label>
-            <input 
-              type="text" 
-              [(ngModel)]="contentData.home.btn1Text" 
-              class="border p-3 rounded-lg w-full"
-            >
+            <div class="flex gap-2 items-center">
+              <input 
+                type="text" 
+                [(ngModel)]="contentData.home.btn1_text" 
+                class="border p-3 rounded-lg flex-1"
+                (keypress)="onFieldKeyPress($event, 'home', 'btn1_text')"
+                (input)="onFieldInput('home', 'btn1_text')"
+                [disabled]="isFieldSaving('home_btn1_text')"
+              >
+              <button 
+                (click)="updateHomeField('btn1_text')"
+                class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-lg transition-colors"
+                [disabled]="isFieldSaving('home_btn1_text')"
+              >
+                <span *ngIf="!isFieldSaving('home_btn1_text')">💾</span>
+                <span *ngIf="isFieldSaving('home_btn1_text')" class="animate-spin">⟳</span>
+              </button>
+              <div class="w-6 h-6 flex items-center justify-center">
+                <div *ngIf="isFieldSuccess('home_btn1_text')" class="text-green-500">✓</div>
+                <div *ngIf="isFieldError('home_btn1_text')" class="text-red-500">✗</div>
+              </div>
+            </div>
           </div>
           <div>
             <label class="block text-gray-700 mb-2">Button 2 Text:</label>
-            <input 
-              type="text" 
-              [(ngModel)]="contentData.home.btn2Text" 
-              class="border p-3 rounded-lg w-full"
-            >
+            <div class="flex gap-2 items-center">
+              <input 
+                type="text" 
+                [(ngModel)]="contentData.home.btn2_text" 
+                class="border p-3 rounded-lg flex-1"
+                (keypress)="onFieldKeyPress($event, 'home', 'btn2_text')"
+                (input)="onFieldInput('home', 'btn2_text')"
+                [disabled]="isFieldSaving('home_btn2_text')"
+              >
+              <button 
+                (click)="updateHomeField('btn2_text')"
+                class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-2 rounded-lg transition-colors"
+                [disabled]="isFieldSaving('home_btn2_text')"
+              >
+                <span *ngIf="!isFieldSaving('home_btn2_text')">💾</span>
+                <span *ngIf="isFieldSaving('home_btn2_text')" class="animate-spin">⟳</span>
+              </button>
+              <div class="w-6 h-6 flex items-center justify-center">
+                <div *ngIf="isFieldSuccess('home_btn2_text')" class="text-green-500">✓</div>
+                <div *ngIf="isFieldError('home_btn2_text')" class="text-red-500">✗</div>
+              </div>
+            </div>
           </div>
         </div>
         
+        <!-- Background Image Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">Background Image:</label>
-          <input 
-            type="file" 
-            class="border p-3 rounded-lg w-full" 
-            (change)="onHomeBgImageChange($event)"
-            accept="image/*"
-          >
+          <div class="flex gap-2 items-center">
+            <input 
+              type="file" 
+              class="border p-3 rounded-lg flex-1" 
+              (change)="onHomeBgImageChange($event)"
+              accept="image/*"
+            >
+            <button 
+              (click)="updateHomeImage()"
+              class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[100px]"
+              [disabled]="!homeBgImageFile || isFieldSaving('home_image')"
+            >
+              <span *ngIf="!isFieldSaving('home_image')">Upload</span>
+              <span *ngIf="isFieldSaving('home_image')" class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                <span class="text-xs">...</span>
+              </span>
+            </button>
+            <div class="w-6 h-6 flex items-center justify-center">
+              <div *ngIf="isFieldSuccess('home_image')" class="text-green-500 text-lg">✓</div>
+              <div *ngIf="isFieldError('home_image')" class="text-red-500 text-lg">✗</div>
+            </div>
+          </div>
           <div class="mt-2 text-sm text-gray-500">Recommended size: 1920x1080 pixels</div>
         </div>
       </div>
@@ -86,32 +234,96 @@
       <div *ngIf="activeTab === 'about'">
         <h2 class="text-2xl font-bold mb-4">About Us Content</h2>
         
+        <!-- Section Title Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">Section Title:</label>
-          <input 
-            type="text" 
-            [(ngModel)]="contentData.about.title" 
-            class="border p-3 rounded-lg w-full"
-          >
+          <div class="flex gap-2 items-center">
+            <input 
+              type="text" 
+              [(ngModel)]="contentData.about.title" 
+              class="border p-3 rounded-lg flex-1"
+              (keypress)="onFieldKeyPress($event, 'about', 'title')"
+              (input)="onFieldInput('about', 'title')"
+              [disabled]="isFieldSaving('about_title')"
+            >
+            <button 
+              (click)="updateAboutField('title')"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[80px]"
+              [disabled]="isFieldSaving('about_title')"
+            >
+              <span *ngIf="!isFieldSaving('about_title')">Save</span>
+              <span *ngIf="isFieldSaving('about_title')" class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                <span class="text-xs">...</span>
+              </span>
+            </button>
+            <!-- Status Indicator -->
+            <div class="w-6 h-6 flex items-center justify-center">
+              <div *ngIf="isFieldSuccess('about_title')" class="text-green-500 text-lg">✓</div>
+              <div *ngIf="isFieldError('about_title')" class="text-red-500 text-lg">✗</div>
+            </div>
+          </div>
         </div>
         
+        <!-- Description Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">Description:</label>
-          <textarea 
-            [(ngModel)]="contentData.about.description" 
-            class="border p-3 rounded-lg w-full" 
-            rows="6"
-          ></textarea>
+          <div class="flex gap-2 items-start">
+            <textarea 
+              [(ngModel)]="contentData.about.description" 
+              class="border p-3 rounded-lg flex-1" 
+              rows="6"
+              (keypress)="onFieldKeyPress($event, 'about', 'description')"
+              (input)="onFieldInput('about', 'description')"
+              [disabled]="isFieldSaving('about_description')"
+            ></textarea>
+            <div class="flex flex-col gap-2">
+              <button 
+                (click)="updateAboutField('description')"
+                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[80px]"
+                [disabled]="isFieldSaving('about_description')"
+              >
+                <span *ngIf="!isFieldSaving('about_description')">Save</span>
+                <span *ngIf="isFieldSaving('about_description')" class="flex items-center">
+                  <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                  <span class="text-xs">...</span>
+                </span>
+              </button>
+              <!-- Status Indicator -->
+              <div class="w-6 h-6 flex items-center justify-center">
+                <div *ngIf="isFieldSuccess('about_description')" class="text-green-500 text-lg">✓</div>
+                <div *ngIf="isFieldError('about_description')" class="text-red-500 text-lg">✗</div>
+              </div>
+            </div>
+          </div>
         </div>
         
+        <!-- About Image Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">About Image:</label>
-          <input 
-            type="file" 
-            class="border p-3 rounded-lg w-full" 
-            (change)="onAboutImageChange($event)"
-            accept="image/*"
-          >
+          <div class="flex gap-2 items-center">
+            <input 
+              type="file" 
+              class="border p-3 rounded-lg flex-1" 
+              (change)="onAboutImageChange($event)"
+              accept="image/*"
+            >
+            <button 
+              (click)="updateAboutImage()"
+              class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[100px]"
+              [disabled]="!aboutImageFile || isFieldSaving('about_image')"
+            >
+              <span *ngIf="!isFieldSaving('about_image')">Upload</span>
+              <span *ngIf="isFieldSaving('about_image')" class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                <span class="text-xs">...</span>
+              </span>
+            </button>
+            <div class="w-6 h-6 flex items-center justify-center">
+              <div *ngIf="isFieldSuccess('about_image')" class="text-green-500 text-lg">✓</div>
+              <div *ngIf="isFieldError('about_image')" class="text-red-500 text-lg">✗</div>
+            </div>
+          </div>
           <div class="mt-2 text-sm text-gray-500">Recommended size: 600x600 pixels</div>
         </div>
       </div>
@@ -120,22 +332,66 @@
       <div *ngIf="activeTab === 'features'">
         <h2 class="text-2xl font-bold mb-4">Features Content</h2>
         
+        <!-- Section Title Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">Section Title:</label>
-          <input 
-            type="text" 
-            [(ngModel)]="contentData.features.title" 
-            class="border p-3 rounded-lg w-full"
-          >
+          <div class="flex gap-2 items-center">
+            <input 
+              type="text" 
+              [(ngModel)]="contentData.features.main.title" 
+              class="border p-3 rounded-lg flex-1"
+              (keypress)="onFieldKeyPress($event, 'features', 'title')"
+              (input)="onFieldInput('features', 'title')"
+              [disabled]="isFieldSaving('features_title')"
+            >
+            <button 
+              (click)="updateFeaturesField('title')"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[80px]"
+              [disabled]="isFieldSaving('features_title')"
+            >
+              <span *ngIf="!isFieldSaving('features_title')">Save</span>
+              <span *ngIf="isFieldSaving('features_title')" class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                <span class="text-xs">...</span>
+              </span>
+            </button>
+            <!-- Status Indicator -->
+            <div class="w-6 h-6 flex items-center justify-center">
+              <div *ngIf="isFieldSuccess('features_title')" class="text-green-500 text-lg">✓</div>
+              <div *ngIf="isFieldError('features_title')" class="text-red-500 text-lg">✗</div>
+            </div>
+          </div>
         </div>
         
+        <!-- Subtitle Field -->
         <div class="mb-4">
           <label class="block text-gray-700 mb-2">Subtitle:</label>
-          <input 
-            type="text" 
-            [(ngModel)]="contentData.features.subtitle" 
-            class="border p-3 rounded-lg w-full"
-          >
+          <div class="flex gap-2 items-center">
+            <input 
+              type="text" 
+              [(ngModel)]="contentData.features.main.subtitle" 
+              class="border p-3 rounded-lg flex-1"
+              (keypress)="onFieldKeyPress($event, 'features', 'subtitle')"
+              (input)="onFieldInput('features', 'subtitle')"
+              [disabled]="isFieldSaving('features_subtitle')"
+            >
+            <button 
+              (click)="updateFeaturesField('subtitle')"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg transition-colors min-w-[80px]"
+              [disabled]="isFieldSaving('features_subtitle')"
+            >
+              <span *ngIf="!isFieldSaving('features_subtitle')">Save</span>
+              <span *ngIf="isFieldSaving('features_subtitle')" class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+                <span class="text-xs">...</span>
+              </span>
+            </button>
+            <!-- Status Indicator -->
+            <div class="w-6 h-6 flex items-center justify-center">
+              <div *ngIf="isFieldSuccess('features_subtitle')" class="text-green-500 text-lg">✓</div>
+              <div *ngIf="isFieldError('features_subtitle')" class="text-red-500 text-lg">✗</div>
+            </div>
+          </div>
         </div>
         
         <h3 class="text-lg font-bold mt-6 mb-3">Feature Cards</h3>
@@ -186,19 +442,38 @@
         </button>
       </div>
 
-      <button 
-        (click)="saveChanges()"
-        class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg w-full mt-6 transition"
-      >
-        Save Changes
-      </button>
+      <!-- Legacy Save All Button (for bulk operations) -->
+      <div class="mt-6 pt-4 border-t border-gray-200">
+        <p class="text-sm text-gray-600 mb-2">
+          <strong>Bulk Operations:</strong> Use this button to save all unsaved changes at once
+        </p>
+        <button 
+          (click)="saveChanges()"
+          class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg w-full transition"
+          [disabled]="isSaving"
+        >
+          {{ isSaving ? 'Saving All Changes...' : 'Save All Changes (Legacy)' }}
+        </button>
+      </div>
 
-      <!-- Success Message -->
+      <!-- Enhanced Toast Message -->
       <div 
         *ngIf="showSaveSuccess"
-        class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300"
+        class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 z-50"
+        [ngClass]="{
+          'bg-green-500 text-white': toastType === 'success',
+          'bg-red-500 text-white': toastType === 'error',
+          'bg-blue-500 text-white': toastType === 'info'
+        }"
       >
-        Changes saved successfully!
+        <div class="flex items-center">
+          <div class="mr-2">
+            <span *ngIf="toastType === 'success'">✅</span>
+            <span *ngIf="toastType === 'error'">❌</span>
+            <span *ngIf="toastType === 'info'">ℹ️</span>
+          </div>
+          <span>{{ toastMessage || 'Changes saved successfully!' }}</span>
+        </div>
       </div>
     </div>
 
@@ -225,8 +500,8 @@
                 {{ contentData.home.subtitle }}
               </p>
               <div class="flex flex-wrap justify-center gap-4">
-                <button class="bg-white text-black px-6 py-3 rounded-full font-bold">{{ contentData.home.btn1Text }}</button>
-                <button class="bg-white text-black px-6 py-3 rounded-full font-bold">{{ contentData.home.btn2Text }}</button>
+                <button class="bg-white text-black px-6 py-3 rounded-full font-bold">{{ contentData.home.btn1_text }}</button>
+                <button class="bg-white text-black px-6 py-3 rounded-full font-bold">{{ contentData.home.btn2_text }}</button>
               </div>
             </div>
           </div>
@@ -258,8 +533,8 @@
         <!-- Features Preview -->
         <div *ngIf="activeTab === 'features'" class="py-10 bg-white">
           <div class="container mx-auto px-8">
-            <h2 class="text-4xl font-bold text-gray-800 mb-2 text-center">{{ contentData.features.title }}</h2>
-            <p class="text-2xl text-green-800 mb-12 text-center">{{ contentData.features.subtitle }}</p>
+            <h2 class="text-4xl font-bold text-gray-800 mb-2 text-center">{{ contentData.features.main.title }}</h2>
+            <p class="text-2xl text-green-800 mb-12 text-center">{{ contentData.features.main.subtitle }}</p>
             <div class="grid grid-cols-1 gap-6">
               <div 
                 *ngFor="let card of contentData.features.cards; let i = index"

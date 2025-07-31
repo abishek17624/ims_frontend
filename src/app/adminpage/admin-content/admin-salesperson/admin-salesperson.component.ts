@@ -32,20 +32,72 @@ export class AdminSalespersonComponent implements OnInit {
   constructor(private http: HttpClient) { } // <--- Changed constructor, removed SalesService
 
   ngOnInit() { //
+    console.log('AdminSalespersonComponent initialized'); // Debug log
+    console.log('Environment API URL:', environment.apiUrl); // Debug log
     this.loadSalesPersons(); //
+  }
+
+  // Add a method to manually refresh data (for debugging)
+  refreshData() {
+    console.log('Manual refresh triggered'); // Debug log
+    this.loadSalesPersons();
+  }
+
+  // Debug method to check database state
+  debugDatabase() {
+    console.log('Checking database state...'); // Debug log
+    this.http.get(`${environment.apiUrl}/salesperson/debug`, { withCredentials: true })
+      .subscribe({
+        next: (data: any) => {
+          console.log('Database debug data:', data);
+          alert(`Database State:\nUsers: ${data.counts.users}\nSalespersons: ${data.counts.salespersons}\nCheck console for details.`);
+        },
+        error: (err) => {
+          console.error('Debug request failed:', err);
+          this.showToastMessage('Debug request failed. Check console.', 'error');
+        }
+      });
   }
 
   loadSalesPersons() { //
     // Fetch sales persons from backend
-    this.http.get<SalesPerson[]>(`${environment.apiUrl}/salesperson`, { withCredentials: true }) // Assuming GET /salesperson for list
+    console.log('Loading salespersons from:', `${environment.apiUrl}/salesperson`); // Debug log
+    this.http.get<any[]>(`${environment.apiUrl}/salesperson`, { withCredentials: true })
       .subscribe({
         next: (data) => {
-          this.allSalesPersons = data.map(sp => ({ ...sp, dateAdded: sp.dateAdded ? new Date(sp.dateAdded) : undefined })); // Convert date string to Date object
+          console.log('Raw data from backend:', data); // Debug log
+          if (!data || !Array.isArray(data)) {
+            console.error('Invalid data format received:', data);
+            this.allSalesPersons = [];
+            this.showToastMessage('Invalid data format received from server.', 'error');
+            return;
+          }
+          
+          this.allSalesPersons = data.map((sp, index) => {
+            console.log(`Processing salesperson ${index}:`, sp); // Debug each salesperson
+            return {
+              id: sp.id,
+              name: sp.name || '',
+              contact: sp.contact || '',
+              email: sp.email || '',
+              salesTarget: Number(sp.salesTarget || sp.sales_target || 0),
+              currentSales: Number(sp.currentSales || sp.current_sales || 0),
+              performanceRating: Number(sp.performanceRating || sp.performance_rating || 0),
+              dateAdded: sp.dateAdded ? new Date(sp.dateAdded) : (sp.created_at ? new Date(sp.created_at) : new Date())
+            };
+          });
+          console.log('Processed salesPersons:', this.allSalesPersons); // Debug log
           this.filterSalesPersons(); // Apply initial filter
         },
         error: (err) => {
           console.error('Failed to load sales persons:', err);
-          this.showToastMessage('Failed to load sales persons.', 'error'); //
+          if (err.status === 401) {
+            this.showToastMessage('Authentication required. Please login again.', 'error');
+          } else if (err.status === 403) {
+            this.showToastMessage('Access denied. Admin privileges required.', 'error');
+          } else {
+            this.showToastMessage('Failed to load sales persons. Please check console for details.', 'error');
+          }
         }
       });
   }
@@ -93,7 +145,25 @@ export class AdminSalespersonComponent implements OnInit {
   }
 
   showViewForm(salesPerson: SalesPerson) { //
-    this.selectedSalesPerson = { ...salesPerson }; //
+    console.log('Viewing salesperson:', salesPerson); // Debug log
+    if (!salesPerson || !salesPerson.id) {
+      console.error('Invalid salesperson data for view:', salesPerson);
+      this.showToastMessage('Invalid salesperson data.', 'error');
+      return;
+    }
+    
+    this.selectedSalesPerson = { 
+      id: salesPerson.id,
+      name: salesPerson.name || '',
+      contact: salesPerson.contact || '',
+      email: salesPerson.email || '',
+      salesTarget: Number(salesPerson.salesTarget || 0),
+      currentSales: Number(salesPerson.currentSales || 0),
+      performanceRating: Number(salesPerson.performanceRating || 0),
+      dateAdded: salesPerson.dateAdded,
+      password: '' // Don't show password in view
+    }; 
+    console.log('Selected salesperson for view:', this.selectedSalesPerson); // Debug log
     this.currentView = 'view'; //
     this.isEditMode = false; //
   }
@@ -160,7 +230,7 @@ export class AdminSalespersonComponent implements OnInit {
 
   showAddForm() { //
     this.selectedSalesPerson = { //
-      id: '', //
+      id: 0, // Initialize as number
       name: '', //
       contact: '', //
       email: '', //
@@ -176,20 +246,41 @@ export class AdminSalespersonComponent implements OnInit {
   }
 
   editSalesPerson(salesPerson: SalesPerson) { //
-    this.selectedSalesPerson = { ...salesPerson }; //
+    console.log('Editing salesperson:', salesPerson); // Debug log
+    if (!salesPerson || !salesPerson.id) {
+      console.error('Invalid salesperson data for edit:', salesPerson);
+      this.showToastMessage('Invalid salesperson data.', 'error');
+      return;
+    }
+    
+    this.selectedSalesPerson = { 
+      id: salesPerson.id,
+      name: salesPerson.name || '',
+      contact: salesPerson.contact || '',
+      email: salesPerson.email || '',
+      salesTarget: Number(salesPerson.salesTarget || 0),
+      currentSales: Number(salesPerson.currentSales || 0),
+      performanceRating: Number(salesPerson.performanceRating || 0),
+      dateAdded: salesPerson.dateAdded,
+      password: '' // Don't pre-fill password for security
+    }; 
+    console.log('Selected salesperson for edit:', this.selectedSalesPerson); // Debug log
     this.currentView = 'edit'; //
     this.isEditMode = true; //
     this.showPassword = false; //
   }
 
   submitForm() { //
-    if (!this.selectedSalesPerson) return; //
+    if (!this.selectedSalesPerson) {
+      this.showToastMessage('No salesperson data selected.', 'error');
+      return;
+    }
 
     // Validate form
-    if (!this.selectedSalesPerson.name ||
-        !this.selectedSalesPerson.contact ||
-        !this.selectedSalesPerson.email ||
-        (this.currentView === 'add' && !this.selectedSalesPerson.password)) { //
+    if (!this.selectedSalesPerson.name?.trim() ||
+        !this.selectedSalesPerson.contact?.trim() ||
+        !this.selectedSalesPerson.email?.trim() ||
+        (this.currentView === 'add' && !this.selectedSalesPerson.password?.trim())) { //
       this.showToastMessage('Please fill all required fields', 'error'); //
       return;
     }
@@ -207,24 +298,46 @@ export class AdminSalespersonComponent implements OnInit {
       return;
     }
 
+    // Validate numeric fields
+    if ((this.selectedSalesPerson.salesTarget || 0) < 0 || 
+        (this.selectedSalesPerson.currentSales || 0) < 0 || 
+        (this.selectedSalesPerson.performanceRating || 0) < 0) {
+      this.showToastMessage('Sales values cannot be negative', 'error');
+      return;
+    }
+
     if (this.currentView === 'add') { //
       // --- Add new sales person via Backend API ---
       const newSalesPersonPayload = {
-        name: this.selectedSalesPerson.name,
-        contact: this.selectedSalesPerson.contact,
-        email: this.selectedSalesPerson.email,
+        name: this.selectedSalesPerson.name?.trim(),
+        contact: this.selectedSalesPerson.contact?.trim(),
+        email: this.selectedSalesPerson.email?.trim(),
         password: this.selectedSalesPerson.password, // Include password for backend user creation
-        salesTarget: this.selectedSalesPerson.salesTarget || 0,
-        currentSales: this.selectedSalesPerson.currentSales || 0
+        salesTarget: Number(this.selectedSalesPerson.salesTarget || 0),
+        currentSales: Number(this.selectedSalesPerson.currentSales || 0)
         // performanceRating is set by backend on creation, or can be added to payload if needed
       };
+
+      console.log('Creating salesperson with payload:', newSalesPersonPayload); // Debug log
 
       this.http.post(`${environment.apiUrl}/salesperson/create`, newSalesPersonPayload, { withCredentials: true }) // <--- Make POST request
         .subscribe({
           next: (response: any) => {
+            console.log('Create response:', response); // Debug log
+            console.log('Response details:', {
+              message: response.message,
+              salesPersonId: response.salesPersonId,
+              userId: response.userId,
+              insertedData: response.insertedData
+            }); // Debug log
+            
             if (response.message === 'Salesperson created successfully') { // Check response message
               this.showToastMessage('Sales person added successfully!', 'success'); //
-              this.loadSalesPersons(); // Reload list from backend
+              console.log('Reloading salespersons list...'); // Debug log
+              // Force reload with a slight delay to ensure database consistency
+              setTimeout(() => {
+                this.loadSalesPersons(); // Reload list from backend
+              }, 500);
               this.currentView = 'list'; //
             } else {
               this.showToastMessage(response.message || 'Failed to add sales person.', 'error');
@@ -232,7 +345,27 @@ export class AdminSalespersonComponent implements OnInit {
           },
           error: (err) => {
             console.error('Add sales person failed:', err);
-            this.showToastMessage(err.error?.message || 'Server error occurred while adding sales person.', 'error');
+            console.error('Error details:', {
+              status: err.status,
+              statusText: err.statusText,
+              error: err.error,
+              message: err.message
+            }); // Additional debug info
+            
+            if (err.status === 409) {
+              this.showToastMessage('A salesperson with this email already exists.', 'error');
+            } else if (err.status === 401) {
+              this.showToastMessage('Authentication required. Please login again.', 'error');
+            } else if (err.status === 403) {
+              this.showToastMessage('Access denied. Admin privileges required.', 'error');
+            } else if (err.status === 400) {
+              this.showToastMessage(err.error?.message || 'Invalid data provided.', 'error');
+            } else if (err.status === 500) {
+              const errorMsg = err.error?.message || 'Server error occurred while adding sales person.';
+              this.showToastMessage(`Server Error: ${errorMsg}`, 'error');
+            } else {
+              this.showToastMessage(err.error?.message || 'Server error occurred while adding sales person.', 'error');
+            }
           }
         });
 
@@ -242,18 +375,23 @@ export class AdminSalespersonComponent implements OnInit {
         this.showToastMessage('Sales person ID is missing for update.', 'error');
         return;
       }
+      
       const updatedSalesPersonPayload = {
-        name: this.selectedSalesPerson.name,
-        contact: this.selectedSalesPerson.contact,
-        email: this.selectedSalesPerson.email,
-        salesTarget: this.selectedSalesPerson.salesTarget || 0,
-        currentSales: this.selectedSalesPerson.currentSales || 0,
-        performanceRating: this.selectedSalesPerson.performanceRating || 0 // Include performance rating
+        name: this.selectedSalesPerson.name?.trim(),
+        contact: this.selectedSalesPerson.contact?.trim(),
+        email: this.selectedSalesPerson.email?.trim(),
+        salesTarget: Number(this.selectedSalesPerson.salesTarget || 0),
+        currentSales: Number(this.selectedSalesPerson.currentSales || 0),
+        performanceRating: Number(this.selectedSalesPerson.performanceRating || 0) // Include performance rating
       };
+
+      console.log('Updating salesperson with payload:', updatedSalesPersonPayload); // Debug log
+      console.log('Salesperson ID:', this.selectedSalesPerson.id); // Debug log
 
       this.http.put(`${environment.apiUrl}/salesperson/${this.selectedSalesPerson.id}`, updatedSalesPersonPayload, { withCredentials: true }) // <--- Make PUT request
         .subscribe({
           next: (response: any) => {
+            console.log('Update response:', response); // Debug log
             if (response.message === 'Salesperson updated successfully') { // Check response message
               this.showToastMessage('Sales person updated successfully!', 'success'); //
               this.loadSalesPersons();
@@ -264,17 +402,29 @@ export class AdminSalespersonComponent implements OnInit {
           },
           error: (err) => {
             console.error('Update sales person failed:', err);
-            this.showToastMessage(err.error?.message || 'Server error occurred while updating sales person.', 'error');
+            if (err.status === 404) {
+              this.showToastMessage('Salesperson not found.', 'error');
+            } else if (err.status === 409) {
+              this.showToastMessage('Email already in use by another user.', 'error');
+            } else if (err.status === 401) {
+              this.showToastMessage('Authentication required. Please login again.', 'error');
+            } else if (err.status === 403) {
+              this.showToastMessage('Access denied. Admin privileges required.', 'error');
+            } else {
+              this.showToastMessage(err.error?.message || 'Server error occurred while updating sales person.', 'error');
+            }
           }
         });
     }
   }
 
-  deleteSalesPerson(id: string) { //
+  deleteSalesPerson(id: string | number) { //
     if (confirm('Are you sure you want to delete this sales person?')) { //
+      console.log('Deleting salesperson with ID:', id); // Debug log
       this.http.delete(`${environment.apiUrl}/salesperson/${id}`, { withCredentials: true }) // <--- Make DELETE request
         .subscribe({
           next: (response: any) => {
+            console.log('Delete response:', response); // Debug log
             if (response.message === 'Salesperson deleted successfully') { // Check response message
               this.showToastMessage('Sales person deleted successfully!', 'success'); //
               this.loadSalesPersons(); // Reload list
@@ -285,7 +435,15 @@ export class AdminSalespersonComponent implements OnInit {
           },
           error: (err) => {
             console.error('Delete sales person failed:', err);
-            this.showToastMessage(err.error?.message || 'Server error occurred while deleting sales person.', 'error');
+            if (err.status === 404) {
+              this.showToastMessage('Salesperson not found.', 'error');
+            } else if (err.status === 401) {
+              this.showToastMessage('Authentication required. Please login again.', 'error');
+            } else if (err.status === 403) {
+              this.showToastMessage('Access denied. Admin privileges required.', 'error');
+            } else {
+              this.showToastMessage(err.error?.message || 'Server error occurred while deleting sales person.', 'error');
+            }
           }
         });
     }

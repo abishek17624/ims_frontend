@@ -17,10 +17,6 @@ import { AdminSettingComponent } from './adminpage/admin-content/admin-setting/a
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { SupplierhomeComponent } from './supplierpage/supplierhome/supplierhome.component';
-// import { authGuard } from './authguard/auth.guard';
-import { adminGuard } from './authguard/auth/admin.guard';
-import { supplierGuard } from './authguard/auth/supplier.guard';
-import { salesGuard } from './authguard/auth/sales.guard';
 
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';

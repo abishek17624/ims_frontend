@@ -2,15 +2,37 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../environments/environment';
+import { AuthService } from '../../../services/auth.service';
 
 interface Invoice {
-  id: string;
-  customer: string;
-  order: string;
-  date: string;
+  invoice_id: number;
+  order_id: number;
+  supplier_id: number;
+  invoiceDate: string;
   dueDate: string;
   amount: number;
-  status: string;
+  invoiceStatus: string;
+  createdAt?: string;
+  updatedAt?: string;
+  
+  // Order Details
+  product_id: number;
+  productName: string;
+  quantity: number;
+  unit: string;
+  orderValue: number;
+  productCategory: string;
+  orderDate: string;
+  deliveryDate: string;
+  deliveryStatus: string;
+  orderStatus: string;
+  
+  // Supplier Details
+  supplierName: string;
+  supplierEmail: string;
+  supplierPhone: string;
 }
 
 interface Customer {
@@ -21,32 +43,15 @@ interface Customer {
 @Component({
   selector: 'app-admin-report',
   standalone: true,
-  imports: [CommonModule, FormsModule,RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './admin-report.component.html',
   styleUrls: ['./admin-report.component.css']
 })
 export class AdminReportComponent implements OnInit {
-  // Sample invoice data
-  invoiceData: Invoice[] = [
-     { id: 'INV-2023-001', customer: 'Supplier X', order: 'ORD-7535', date: '2024-11-12', dueDate: '2025-12-11', amount: 5375.72, status: 'paid' },
-    { id: 'INV-2023-002', customer: 'Supplier Y', order: 'ORD-5724', date: '2024-11-10', dueDate: '2025-12-21', amount: 3021.26, status: 'pending' },
-    { id: 'INV-2023-003', customer: 'Supplier Z', order: 'ORD-8642', date: '2024-11-15', dueDate: '2024-12-05', amount: 4808.50, status: 'overdue' },
-    { id: 'INV-2023-004', customer: 'Supplier A', order: 'ORD-1256', date: '2024-11-18', dueDate: '2024-12-18', amount: 7542.30, status: 'paid' },
-    { id: 'INV-2023-005', customer: 'Supplier B', order: 'ORD-9834', date: '2024-11-20', dueDate: '2025-12-20', amount: 2156.90, status: 'pending' },
-    { id: 'INV-2023-006', customer: 'Supplier X', order: 'ORD-3467', date: '2024-11-05', dueDate: '2024-12-05', amount: 6789.45, status: 'paid' },
-    { id: 'INV-2023-007', customer: 'Supplier Y', order: 'ORD-7891', date: '2024-11-08', dueDate: '2025-12-08', amount: 3456.78, status: 'pending' },
-    { id: 'INV-2023-008', customer: 'Supplier Z', order: 'ORD-2345', date: '2024-11-25', dueDate: '2024-12-25', amount: 5678.90, status: 'pending' },
-    { id: 'INV-2023-009', customer: 'Supplier A', order: 'ORD-6789', date: '2024-11-30', dueDate: '2025-12-30', amount: 4321.09, status: 'paid' },
-    { id: 'INV-2023-010', customer: 'Supplier B', order: 'ORD-4567', date: '2024-11-28', dueDate: '2024-12-28', amount: 8765.43, status: 'overdue' }
-  ];
+  // Real invoice data from backend
+  invoiceData: Invoice[] = [];
 
-  customers: Customer[] = [
-    { id: '1', name: 'Supplier X' },
-    { id: '2', name: 'Supplier Y' },
-    { id: '3', name: 'Supplier Z' },
-    { id: '4', name: 'Supplier A' },
-    { id: '5', name: 'Supplier B' }
-  ];
+  customers: Customer[] = [];
 
   // Filter variables
   fromDate: string = '';
@@ -57,7 +62,7 @@ export class AdminReportComponent implements OnInit {
   // Pagination variables
   currentPage: number = 1;
   recordsPerPage: number = 5;
-  filteredInvoices: Invoice[] = [...this.invoiceData];
+  filteredInvoices: Invoice[] = [];
   paginatedInvoices: Invoice[] = [];
   totalPages: number = 1;
 
@@ -76,25 +81,114 @@ export class AdminReportComponent implements OnInit {
   toastType: 'success' | 'error' | 'info' = 'info';
   toastTimeout: any;
 
+  // Loading state
+  isLoading: boolean = false;
+
+  constructor(private http: HttpClient, private authService: AuthService) {
+    console.log('AdminReportComponent - Constructor called');
+    console.log('AdminReportComponent - Environment API URL:', environment.apiUrl);
+  }
+
   ngOnInit(): void {
-    this.updateStats();
-    this.filterInvoices();
+    console.log('AdminReportComponent - ngOnInit called');
+    this.fetchInvoices();
+  }
+
+  // Fetch invoices from backend
+  fetchInvoices(): void {
+    console.log('AdminReportComponent - Fetching invoices from backend...');
+    this.isLoading = true;
+
+    this.http.get<Invoice[]>(`${environment.apiUrl}/invoice`, { withCredentials: true })
+      .subscribe({
+        next: (data) => {
+          console.log('AdminReportComponent - Raw invoice data received:', data);
+          console.log('AdminReportComponent - Number of invoices received:', data?.length || 0);
+          
+          if (data && Array.isArray(data)) {
+            this.invoiceData = data.map(invoice => ({
+              ...invoice,
+              // Ensure amounts are numbers
+              amount: typeof invoice.amount === 'string' ? parseFloat(invoice.amount as string) : invoice.amount,
+              orderValue: typeof invoice.orderValue === 'string' ? parseFloat(invoice.orderValue as string) : invoice.orderValue
+            }));
+            
+            console.log('AdminReportComponent - Processed invoice data:', this.invoiceData);
+            
+            // Extract unique customers from invoices
+            this.extractCustomers();
+            
+            this.updateStats();
+            this.filterInvoices();
+            
+            if (this.invoiceData.length === 0) {
+              this.showToast('No invoices found in the system.', 'info');
+            } else {
+              console.log(`AdminReportComponent - Loaded ${this.invoiceData.length} invoices successfully`);
+              this.showToast(`Loaded ${this.invoiceData.length} invoices successfully!`, 'success');
+            }
+          } else {
+            console.error('AdminReportComponent - Invalid response format:', data);
+            this.showToast('Invalid response format from server.', 'error');
+          }
+        },
+        error: (err) => {
+          console.error('AdminReportComponent - Failed to fetch invoices:', err);
+          console.error('AdminReportComponent - Error status:', err.status);
+          console.error('AdminReportComponent - Error message:', err.message);
+          console.error('AdminReportComponent - Error details:', err.error);
+          
+          let errorMessage = 'Failed to load invoices.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please login again.';
+          } else if (err.status === 403) {
+            errorMessage = 'You are not authorized to view invoices.';
+          } else if (err.status === 0) {
+            errorMessage = 'Cannot connect to server. Please check if the backend is running.';
+          } else if (err.error?.message) {
+            errorMessage += ' Error: ' + err.error.message;
+          }
+          
+          this.showToast(errorMessage, 'error');
+        },
+        complete: () => {
+          this.isLoading = false;
+        }
+      });
+  }
+
+  // Extract unique customers from invoice data
+  extractCustomers(): void {
+    const uniqueSuppliers = new Map<string, string>();
+    
+    this.invoiceData.forEach(invoice => {
+      if (invoice.supplierName && !uniqueSuppliers.has(invoice.supplier_id.toString())) {
+        uniqueSuppliers.set(invoice.supplier_id.toString(), invoice.supplierName);
+      }
+    });
+    
+    this.customers = Array.from(uniqueSuppliers.entries()).map(([id, name]) => ({
+      id: id,
+      name: name
+    }));
+    
+    console.log('Extracted customers:', this.customers);
   }
 
   // Filter invoices based on selected filters
   filterInvoices(): void {
     this.filteredInvoices = this.invoiceData.filter(invoice => {
       // Filter by date range
-      if (this.fromDate && invoice.date < this.fromDate) return false;
-      if (this.toDate && invoice.date > this.toDate) return false;
+      if (this.fromDate && invoice.invoiceDate < this.fromDate) return false;
+      if (this.toDate && invoice.invoiceDate > this.toDate) return false;
       
       // Filter by status
-      if (this.statusFilter && invoice.status !== this.statusFilter) return false;
+      if (this.statusFilter && invoice.invoiceStatus !== this.statusFilter) return false;
       
       // Filter by customer
       if (this.customerFilter) {
         const customer = this.customers.find(c => c.id === this.customerFilter);
-        if (customer && invoice.customer !== customer.name) return false;
+        if (customer && invoice.supplierName !== customer.name) return false;
       }
       
       return true;
@@ -166,15 +260,15 @@ export class AdminReportComponent implements OnInit {
   // Update stats
   updateStats(): void {
     this.totalInvoices = this.invoiceData.length;
-    this.paidInvoices = this.invoiceData.filter(inv => inv.status === 'paid').length;
-    this.pendingInvoices = this.invoiceData.filter(inv => inv.status === 'pending').length;
-    this.overdueInvoices = this.invoiceData.filter(inv => inv.status === 'overdue').length;
+    this.paidInvoices = this.invoiceData.filter(inv => inv.invoiceStatus === 'paid').length;
+    this.pendingInvoices = this.invoiceData.filter(inv => inv.invoiceStatus === 'pending').length;
+    this.overdueInvoices = this.invoiceData.filter(inv => inv.invoiceStatus === 'overdue').length;
     this.totalRevenue = this.invoiceData.reduce((sum, inv) => sum + inv.amount, 0);
   }
 
   // View invoice details
   viewInvoice(invoiceNumber: string): void {
-    this.selectedInvoice = this.invoiceData.find(inv => inv.id === invoiceNumber) || null;
+    this.selectedInvoice = this.invoiceData.find(inv => inv.invoice_id.toString() === invoiceNumber) || null;
   }
 
   // Close invoice modal
@@ -195,7 +289,7 @@ export class AdminReportComponent implements OnInit {
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Invoice #${this.selectedInvoice?.id || ''}</title>
+          <title>Invoice #${this.selectedInvoice?.invoice_id || ''}</title>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
           <style>
             body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
@@ -249,7 +343,7 @@ export class AdminReportComponent implements OnInit {
   // Download current invoice shown in modal
   downloadCurrentInvoice(): void {
     if (this.selectedInvoice) {
-      this.downloadInvoice(this.selectedInvoice.id);
+      this.downloadInvoice(this.selectedInvoice.invoice_id.toString());
     }
   }
 
@@ -265,7 +359,7 @@ export class AdminReportComponent implements OnInit {
   // Send payment reminder
   sendReminder(): void {
     if (this.selectedInvoice) {
-      this.showToast(`Payment reminder sent for invoice ${this.selectedInvoice.id}`, 'success');
+      this.showToast(`Payment reminder sent for invoice ${this.selectedInvoice.invoice_id}`, 'success');
       this.closeInvoiceModal();
     }
   }
