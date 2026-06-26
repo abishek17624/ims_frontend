@@ -9,6 +9,8 @@ import { Supplier } from '../../../models/supplier'; // Supplier model
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../services/auth.service';
 import { User } from '../../../models/user'; // User model for currentUser
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 @Component({
   selector: 'app-admin-order',
@@ -29,6 +31,7 @@ export class AdminOrderComponent implements OnInit {
   fromDate: string = '';
   toDate: string = '';
   selectedStatusFilter: string = ''; // For main table filter
+  searchTerm: string = ''; // New search term property
 
   // Dashboard stats - Will be calculated from fetched data
   lastMonthOrders: number = 0;
@@ -238,6 +241,20 @@ export class AdminOrderComponent implements OnInit {
   get filteredOrders(): Order[] {
     let filtered = this.orders;
 
+    // Filter by search term (names or words)
+    if (this.searchTerm && this.searchTerm.trim()) {
+      const searchLower = this.searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(order =>
+        order.productName?.toLowerCase().includes(searchLower) ||
+        order.supplierName?.toLowerCase().includes(searchLower) ||
+        order.productCode?.toLowerCase().includes(searchLower) ||
+        order.category?.toLowerCase().includes(searchLower) ||
+        order.status?.toLowerCase().includes(searchLower) ||
+        order.order_id?.toString().includes(searchLower) ||
+        order.deliveryStatus?.toLowerCase().includes(searchLower)
+      );
+    }
+
     // Filter by date range
     if (this.fromDate) {
       filtered = filtered.filter(order => {
@@ -273,25 +290,126 @@ export class AdminOrderComponent implements OnInit {
    * Calculates the total number of pages for pagination.
    */
   get totalPages(): number {
-    return Math.ceil(this.orders.length / this.itemsPerPage); // Base on total orders
+    // Get filtered orders without pagination applied
+    let filtered = this.orders;
+
+    // Apply same filters as in filteredOrders getter (without pagination)
+    if (this.searchTerm && this.searchTerm.trim()) {
+      const searchLower = this.searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(order =>
+        order.productName?.toLowerCase().includes(searchLower) ||
+        order.supplierName?.toLowerCase().includes(searchLower) ||
+        order.productCode?.toLowerCase().includes(searchLower) ||
+        order.category?.toLowerCase().includes(searchLower) ||
+        order.status?.toLowerCase().includes(searchLower) ||
+        order.order_id?.toString().includes(searchLower) ||
+        order.deliveryStatus?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (this.fromDate) {
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.orderDate);
+        const fromDate = new Date(this.fromDate);
+        return orderDate >= fromDate;
+      });
+    }
+
+    if (this.toDate) {
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.orderDate);
+        const toDate = new Date(this.toDate);
+        toDate.setHours(23, 59, 59, 999);
+        return orderDate <= toDate;
+      });
+    }
+
+    if (this.selectedStatusFilter) {
+      filtered = filtered.filter(order =>
+        order.status.toLowerCase() === this.selectedStatusFilter.toLowerCase()
+      );
+    }
+
+    return Math.ceil(filtered.length / this.itemsPerPage);
   }
+
+  // Handle search input changes
+  onSearchChange(): void {
+    this.currentPage = 1; // Reset to first page when searching
+    this.calculateDashboardStats(); // Recalculate stats based on filtered data
+  }
+
+  // Clear search and reset filters
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.currentPage = 1;
+    this.calculateDashboardStats(); // Recalculate stats when clearing search
+  }
+
   /**
    * Calculates the starting index for current page display.
    */
   get showingFrom(): number {
-      return Math.min((this.currentPage - 1) * this.itemsPerPage + 1, this.filteredOrders.length);
+      const totalFiltered = this.getTotalFilteredCount();
+      return totalFiltered > 0 ? Math.min((this.currentPage - 1) * this.itemsPerPage + 1, totalFiltered) : 0;
   }
   /**
    * Calculates the ending index for current page display.
    */
   get showingTo(): number {
-      return Math.min(this.currentPage * this.itemsPerPage, this.filteredOrders.length);
+      const totalFiltered = this.getTotalFilteredCount();
+      return Math.min(this.currentPage * this.itemsPerPage, totalFiltered);
   }
   /**
    * Gets the total number of orders currently displayed after filtering.
    */
   get totalOrdersDisplayed(): number {
-      return this.filteredOrders.length;
+      return this.getTotalFilteredCount();
+  }
+
+  /**
+   * Helper method to get total filtered count without pagination
+   */
+  private getTotalFilteredCount(): number {
+    let filtered = this.orders;
+
+    if (this.searchTerm && this.searchTerm.trim()) {
+      const searchLower = this.searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(order =>
+        order.productName?.toLowerCase().includes(searchLower) ||
+        order.supplierName?.toLowerCase().includes(searchLower) ||
+        order.productCode?.toLowerCase().includes(searchLower) ||
+        order.category?.toLowerCase().includes(searchLower) ||
+        order.status?.toLowerCase().includes(searchLower) ||
+        order.order_id?.toString().includes(searchLower) ||
+        order.deliveryStatus?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (this.fromDate) {
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.orderDate);
+        const fromDate = new Date(this.fromDate);
+        return orderDate >= fromDate;
+      });
+    }
+
+    if (this.toDate) {
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.orderDate);
+        const toDate = new Date(this.toDate);
+        toDate.setHours(23, 59, 59, 999);
+        return orderDate <= toDate;
+      });
+    }
+
+    if (this.selectedStatusFilter) {
+      filtered = filtered.filter(order =>
+        order.status.toLowerCase() === this.selectedStatusFilter.toLowerCase()
+      );
+    }
+
+    return filtered.length;
   }
   /**
    * Changes the current page for pagination.
@@ -410,21 +528,524 @@ export class AdminOrderComponent implements OnInit {
    * Triggers the browser's print functionality for the invoice modal content.
    */
   printInvoice() {
+    // Hide action buttons and modal background for printing
+    const printContent = this.getPrintableContent();
+    const originalContent = document.body.innerHTML;
+
+    document.body.innerHTML = printContent;
     window.print();
+    document.body.innerHTML = originalContent;
+    window.location.reload(); // Reload to restore Angular bindings
   }
 
   /**
-   * Downloads the invoice content as a text file.
+   * Downloads the invoice content as a PDF file with proper formatting.
    */
-  downloadInvoice() {
-    const invoiceContent = this.generateInvoiceContent();
-    const blob = new Blob([invoiceContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `invoice_${this.currentOrder?.order_id || 'order'}.txt`; // Use order_id
-    a.click();
-    window.URL.revokeObjectURL(url);
+  async downloadInvoice() {
+    try {
+      // Get the invoice content element
+      const invoiceElement = document.querySelector('.invoice-content') as HTMLElement;
+      if (!invoiceElement) {
+        alert('Invoice content not found. Please try again.');
+        return;
+      }
+
+      // Create a temporary container with print styles
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = this.getPrintableContent();
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.background = 'white';
+      tempContainer.style.padding = '20px';
+      document.body.appendChild(tempContainer);
+
+      // Generate PDF using html2canvas and jsPDF
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 794, // A4 width in pixels at 96 DPI
+        height: 1123 // A4 height in pixels at 96 DPI
+      });
+
+      // Remove temporary container
+      document.body.removeChild(tempContainer);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20; // 10mm margin on each side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 10; // 10mm top margin
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight - 20; // Account for margins
+
+      // Add additional pages if content is longer than one page
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight - 20;
+      }
+
+      pdf.save(`invoice_${this.currentOrder?.order_id || 'order'}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
+  }
+
+  /**
+   * Generates printable HTML content with proper styling.
+   */
+  private getPrintableContent(): string {
+    const currentDate = new Date().toLocaleDateString();
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Invoice #${this.currentOrder?.order_id || 'N/A'}</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: white;
+            padding: 20px;
+          }
+          
+          .invoice-container {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+          }
+          
+          .company-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+          }
+          
+          .company-logo {
+            width: 60px;
+            height: 60px;
+            margin-right: 20px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+          }
+          
+          .company-info h1 {
+            font-size: 28px;
+            color: #2563eb;
+            margin-bottom: 5px;
+          }
+          
+          .company-info p {
+            color: #6b7280;
+            font-size: 14px;
+          }
+          
+          .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+          }
+          
+          .invoice-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 10px;
+          }
+          
+          .invoice-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+          }
+          
+          .bill-to, .company-details {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #2563eb;
+          }
+          
+          .bill-to h3, .company-details h3 {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          
+          .bill-to p, .company-details p {
+            margin-bottom: 5px;
+            color: #4b5563;
+          }
+          
+          .order-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+          }
+          
+          .info-item {
+            text-align: center;
+          }
+          
+          .info-item .label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+          }
+          
+          .info-item .value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1f2937;
+          }
+          
+          .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          
+          .status-pending { background: #dbeafe; color: #1d4ed8; }
+          .status-confirmed { background: #d1fae5; color: #065f46; }
+          .status-shipped { background: #e0e7ff; color: #3730a3; }
+          .status-delivered { background: #f3e8ff; color: #6b21a8; }
+          .status-cancelled { background: #f3f4f6; color: #374151; }
+          .status-delayed { background: #fee2e2; color: #dc2626; }
+          
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          
+          .items-table th {
+            background: #2563eb;
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+          }
+          
+          .items-table td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+          }
+          
+          .items-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+          }
+          
+          .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 30px;
+          }
+          
+          .totals-table {
+            width: 300px;
+            border-collapse: collapse;
+          }
+          
+          .totals-table td {
+            padding: 8px 15px;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          
+          .totals-table .total-row {
+            background: #f3f4f6;
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 2px solid #2563eb;
+          }
+          
+          .payment-info {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #10b981;
+          }
+          
+          .payment-info h3 {
+            color: #1f2937;
+            margin-bottom: 15px;
+            font-size: 16px;
+          }
+          
+          .payment-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+          }
+          
+          .payment-item .label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 3px;
+          }
+          
+          .payment-item .value {
+            font-weight: 600;
+            color: #1f2937;
+          }
+          
+          .notes-section {
+            background: #fef7cd;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #f59e0b;
+          }
+          
+          .notes-section h3 {
+            color: #92400e;
+            margin-bottom: 10px;
+          }
+          
+          .notes-section p {
+            color: #78350f;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 12px;
+          }
+          
+          @media print {
+            body { 
+              margin: 0; 
+              padding: 0; 
+            }
+            .invoice-container {
+              padding: 0;
+              max-width: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-container">
+          <!-- Company Header -->
+          <div class="company-header">
+            <div class="company-logo">IMS</div>
+            <div class="company-info">
+              <h1>StockEasy</h1>
+              <p>Inventory Management System</p>
+              <p>123 Business Street, Bangalore, KA 560001, India</p>
+              <p>Phone: +91 9876543210 | Email: info@stockeasy.com</p>
+            </div>
+          </div>
+
+          <!-- Invoice Header -->
+          <div class="invoice-header">
+            <div>
+              <div class="invoice-title">INVOICE</div>
+              <p><strong>Invoice #:</strong> ${this.currentOrder?.order_id || 'N/A'}</p>
+              <p><strong>Date:</strong> ${currentDate}</p>
+            </div>
+            <div style="text-align: right;">
+              <p><strong>Status:</strong> 
+                <span class="status-badge status-${this.currentOrder?.status?.toLowerCase() || 'pending'}">
+                  ${this.currentOrder?.status || 'N/A'}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Billing Details -->
+          <div class="invoice-details">
+            <div class="company-details">
+              <h3>From</h3>
+              <p><strong>StockEasy Pvt Ltd</strong></p>
+              <p>123 Business Street</p>
+              <p>Bangalore, KA 560001</p>
+              <p>India</p>
+              <p><strong>GSTIN:</strong> 22ABCDE1234F1Z5</p>
+              <p><strong>Phone:</strong> +91 9876543210</p>
+              <p><strong>Email:</strong> accounts@stockeasy.com</p>
+            </div>
+            
+            <div class="bill-to">
+              <h3>Bill To</h3>
+              <p><strong>${this.currentOrder?.supplierName || 'N/A'}</strong></p>
+              <p>${this.getSupplierAddress()}</p>
+              <p>India</p>
+              <p><strong>GSTIN:</strong> ${this.getSupplierGstin()}</p>
+              <p><strong>Phone:</strong> ${this.currentOrder?.supplierPhone || 'N/A'}</p>
+              <p><strong>Email:</strong> ${this.getSupplierEmail()}</p>
+            </div>
+          </div>
+
+          <!-- Order Information -->
+          <div class="order-info">
+            <div class="info-item">
+              <div class="label">Order Date</div>
+              <div class="value">${this.currentOrder?.orderDate || 'N/A'}</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Delivery Date</div>
+              <div class="value">${this.currentOrder?.deliveryDate || 'N/A'}</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Category</div>
+              <div class="value">${this.currentOrder?.category || 'N/A'}</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Delivery Status</div>
+              <div class="value">${this.currentOrder?.deliveryStatus || 'N/A'}</div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Item Code</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${this.currentOrder?.productCode || 'N/A'}</td>
+                <td>
+                  <strong>${this.currentOrder?.productName || 'N/A'}</strong><br>
+                  <small>Category: ${this.currentOrder?.category || 'N/A'}</small>
+                </td>
+                <td>${this.currentOrder?.quantity || '0'} ${this.currentOrder?.unit || 'N/A'}</td>
+                <td>${this.getUnitPrice()}</td>
+                <td>₹${(this.currentOrder?.value || 0).toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td>SHIP001</td>
+                <td><strong>Shipping & Handling</strong></td>
+                <td>1</td>
+                <td>₹250.00</td>
+                <td>₹250.00</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Totals -->
+          <div class="totals-section">
+            <table class="totals-table">
+              <tr>
+                <td>Subtotal:</td>
+                <td style="text-align: right;">${this.getSubtotal()}</td>
+              </tr>
+              <tr>
+                <td>Shipping:</td>
+                <td style="text-align: right;">₹250.00</td>
+              </tr>
+              <tr>
+                <td>Tax (18%):</td>
+                <td style="text-align: right;">${this.getTax()}</td>
+              </tr>
+              <tr class="total-row">
+                <td>Total:</td>
+                <td style="text-align: right;">${this.getTotal()}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Payment Information -->
+          <div class="payment-info">
+            <h3>Payment Information</h3>
+            <div class="payment-grid">
+              <div class="payment-item">
+                <div class="label">Payment Method</div>
+                <div class="value">Bank Transfer</div>
+              </div>
+              <div class="payment-item">
+                <div class="label">Account Number</div>
+                <div class="value">1234567890</div>
+              </div>
+              <div class="payment-item">
+                <div class="label">Bank Name</div>
+                <div class="value">Business Bank</div>
+              </div>
+              <div class="payment-item">
+                <div class="label">IFSC Code</div>
+                <div class="value">BUSI0123456</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="notes-section">
+            <h3>Terms & Conditions</h3>
+            <p>Thank you for your business. Please make payment within 15 days of receiving this invoice. For any questions regarding this invoice, please contact our accounts department at accounts@stockeasy.com or call +91 9876543210.</p>
+            ${this.currentOrder?.adminNotes ? `<p><strong>Admin Notes:</strong> ${this.currentOrder.adminNotes}</p>` : ''}
+            ${this.currentOrder?.supplierNotes ? `<p><strong>Supplier Notes:</strong> ${this.currentOrder.supplierNotes}</p>` : ''}
+          </div>
+
+          <!-- Footer -->
+          <div class="footer">
+            <p>This is a computer-generated invoice and does not require a signature.</p>
+            <p>Generated on ${currentDate} | StockEasy Inventory Management System</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
   /**
@@ -799,6 +1420,17 @@ export class AdminOrderComponent implements OnInit {
     const shipping = 250; // Fixed shipping cost
     const total = subtotal + tax + shipping;
     return `₹${total.toFixed(2)}`;
+  }
+
+  /**
+   * Gets current date in a formatted string.
+   */
+  getCurrentDate(): string {
+    return new Date().toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   }
 
   /**

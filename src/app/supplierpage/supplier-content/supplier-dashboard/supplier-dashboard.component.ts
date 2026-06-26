@@ -15,16 +15,10 @@ import { RouterLink } from '@angular/router';
 export class SupplierDashboardComponent implements OnInit   {
 
   ordersData = [
-    { id: '#ORD-1001', customer: 'John Doe', date: '2025-04-10', amount: '₹1,250', status: 'completed' },
-    { id: '#ORD-1002', customer: 'Jane Smith', date: '2025-04-09', amount: '₹2,340', status: 'pending' },
-    { id: '#ORD-1003', customer: 'Robert Johnson', date: '2025-04-08', amount: '₹3,150', status: 'completed' },
-    { id: '#ORD-1004', customer: 'Emily Davis', date: '2025-04-07', amount: '₹1,890', status: 'completed' },
-    { id: '#ORD-1005', customer: 'Michael Wilson', date: '2025-04-06', amount: '₹2,750', status: 'pending' },
-    { id: '#ORD-1006', customer: 'Sarah Brown', date: '2025-04-05', amount: '₹1,430', status: 'cancelled' },
-    { id: '#ORD-1007', customer: 'David Taylor', date: '2025-04-04', amount: '₹3,200', status: 'completed' },
-    { id: '#ORD-1008', customer: 'Jennifer Martinez', date: '2025-04-03', amount: '₹2,100', status: 'completed' },
-    { id: '#ORD-1009', customer: 'William Anderson', date: '2025-04-02', amount: '₹1,650', status: 'pending' },
-    { id: '#ORD-1010', customer: 'Lisa Thomas', date: '2025-04-01', amount: '₹2,900', status: 'completed' }
+    { id: '#ORD-1001', customer: 'Suman', date: '2025-04-10', amount: '₹1,250', status: 'completed' },
+    { id: '#ORD-1002', customer: 'Suman Smith', date: '2025-04-09', amount: '₹2,340', status: 'pending' },
+    { id: '#ORD-1003', customer: 'Mithesh', date: '2025-04-08', amount: '₹3,150', status: 'completed' },
+    { id: '#ORD-1004', customer: 'Suman', date: '2025-04-07', amount: '₹1,890', status: 'completed' },
   ];
 
   currentPage = 1;

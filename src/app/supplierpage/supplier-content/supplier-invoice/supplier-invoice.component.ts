@@ -6,6 +6,8 @@ import { Invoice } from '../../../models/invoice';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../services/auth.service';
 import { User } from '../../../models/user';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 @Component({
   selector: 'app-supplier-invoice',
@@ -27,6 +29,7 @@ export class SupplierInvoiceComponent implements OnInit {
   fromDate: string = '';
   toDate: string = '';
   statusFilter: string = '';
+  searchTerm: string = ''; // New search term property
 
   // Pagination variables
   currentPage: number = 1;
@@ -199,6 +202,20 @@ export class SupplierInvoiceComponent implements OnInit {
   // Filter invoices based on selected filters
   filterInvoices(): void {
     this.filteredInvoices = this.invoiceData.filter(invoice => {
+      // Filter by search term (names or words)
+      if (this.searchTerm && this.searchTerm.trim()) {
+        const searchLower = this.searchTerm.toLowerCase().trim();
+        const matchesSearch = 
+          invoice.invoice_id?.toString().toLowerCase().includes(searchLower) ||
+          invoice.supplierName?.toLowerCase().includes(searchLower) ||
+          invoice.productName?.toLowerCase().includes(searchLower) ||
+          invoice.order_id?.toString().toLowerCase().includes(searchLower) ||
+          invoice.invoiceStatus?.toLowerCase().includes(searchLower) ||
+          invoice.productCategory?.toLowerCase().includes(searchLower);
+        
+        if (!matchesSearch) return false;
+      }
+
       // Filter by date range (using invoiceDate from backend)
       if (this.fromDate && invoice.invoiceDate < this.fromDate) return false;
       if (this.toDate && invoice.invoiceDate > this.toDate) return false;
@@ -219,6 +236,7 @@ export class SupplierInvoiceComponent implements OnInit {
 
   // Reset all filters
   resetFilters(): void {
+    this.searchTerm = '';
     this.fromDate = '';
     this.toDate = '';
     this.statusFilter = '';
@@ -246,6 +264,19 @@ export class SupplierInvoiceComponent implements OnInit {
   goToPage(page: number): void {
     this.currentPage = page;
     this.updatePagination();
+  }
+
+  // Handle search input changes
+  onSearchChange(): void {
+    this.currentPage = 1; // Reset to first page when searching
+    this.filterInvoices(); // Apply filters immediately
+  }
+
+  // Clear search and reset filters
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.currentPage = 1;
+    this.filterInvoices();
   }
 
   // Go to previous page
@@ -303,72 +334,79 @@ export class SupplierInvoiceComponent implements OnInit {
 
   // Print invoice
   printInvoice(): void {
-    const printContent = document.getElementById('invoiceToPrint');
-    if (printContent) {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Invoice #${this.selectedInvoice?.invoice_id}</title>
-              <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                .invoice-header { text-align: center; margin-bottom: 30px; }
-                .company-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
-                .invoice-details { margin-bottom: 30px; }
-                .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                .items-table th, .items-table td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-                .items-table th { background-color: #f5f5f5; }
-                .totals { text-align: right; margin-bottom: 30px; }
-                .payment-info { margin-bottom: 20px; }
-                @media print {
-                  body { margin: 0; }
-                  .no-print { display: none; }
-                }
-              </style>
-            </head>
-            <body>
-              ${printContent.innerHTML}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }
-    }
-    this.showToast('Invoice sent to printer', 'info');
+    // Hide action buttons and modal background for printing
+    const printContent = this.getPrintableInvoiceContent();
+    const originalContent = document.body.innerHTML;
+
+    document.body.innerHTML = printContent;
+    window.print();
+    document.body.innerHTML = originalContent;
+    window.location.reload(); // Reload to restore Angular bindings
   }
 
-  // Download invoice as PDF
-  downloadInvoicePDF(): void {
+  // Download invoice as PDF with enhanced functionality
+  async downloadInvoicePDF(): Promise<void> {
     if (!this.selectedInvoice) {
       this.showToast('No invoice selected for download', 'error');
       return;
     }
 
-    const invoiceContent = document.getElementById('invoiceToPrint');
-    if (!invoiceContent) {
-      this.showToast('Invoice content not found', 'error');
-      return;
-    }
+    try {
+      this.showToast(`Preparing invoice ${this.selectedInvoice.invoice_id} for download...`, 'info');
+      
+      // Create a temporary container with print styles
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = this.getPrintableInvoiceContent();
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.background = 'white';
+      tempContainer.style.padding = '20px';
+      document.body.appendChild(tempContainer);
 
-    // Create a simplified PDF content
-    const pdfContent = this.generatePDFContent();
-    
-    // Create and download the PDF file
-    const blob = new Blob([pdfContent], { type: 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `invoice-${this.selectedInvoice.invoice_id}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-    
-    this.showToast(`Invoice ${this.selectedInvoice.invoice_id} PDF downloaded`, 'success');
+      // Generate PDF using html2canvas and jsPDF
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 794, // A4 width in pixels at 96 DPI
+        height: 1123 // A4 height in pixels at 96 DPI
+      });
+
+      // Remove temporary container
+      document.body.removeChild(tempContainer);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20; // 10mm margin on each side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 10; // 10mm top margin
+
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight - 20; // Account for margins
+
+      // Add additional pages if content is longer than one page
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight - 20;
+      }
+
+      pdf.save(`invoice_${this.selectedInvoice.invoice_id}.pdf`);
+      this.showToast(`Invoice ${this.selectedInvoice.invoice_id} downloaded successfully!`, 'success');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      this.showToast('Failed to generate PDF. Please try again.', 'error');
+    }
   }
 
   // Download invoice as Excel
@@ -421,6 +459,450 @@ StockEasy Team`;
     window.open(mailtoLink);
     
     this.showToast('Email client opened with invoice details', 'info');
+  }
+
+  /**
+   * Gets current date in a formatted string.
+   */
+  getCurrentDate(): string {
+    return new Date().toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
+  /**
+   * Generates printable HTML content for invoice with professional styling.
+   */
+  private getPrintableInvoiceContent(): string {
+    if (!this.selectedInvoice) return '';
+    
+    const currentDate = this.getCurrentDate();
+    const taxAmount = this.selectedInvoice.amount - this.selectedInvoice.orderValue;
+    const unitPrice = this.selectedInvoice.orderValue / (this.selectedInvoice.quantity || 1);
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Invoice #${this.selectedInvoice.invoice_id}</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: white;
+            padding: 20px;
+          }
+          
+          .invoice-container {
+            max-width: 210mm;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+          }
+          
+          .company-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+          }
+          
+          .company-logo {
+            width: 60px;
+            height: 60px;
+            margin-right: 20px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+          }
+          
+          .company-info h1 {
+            font-size: 28px;
+            color: #2563eb;
+            margin-bottom: 5px;
+          }
+          
+          .company-info p {
+            color: #6b7280;
+            font-size: 14px;
+          }
+          
+          .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+          }
+          
+          .invoice-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 10px;
+          }
+          
+          .invoice-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+          }
+          
+          .bill-to, .company-details {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #2563eb;
+          }
+          
+          .bill-to h3, .company-details h3 {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          
+          .bill-to p, .company-details p {
+            margin-bottom: 5px;
+            color: #4b5563;
+          }
+          
+          .order-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+          }
+          
+          .info-item {
+            text-align: center;
+          }
+          
+          .info-item .label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+          }
+          
+          .info-item .value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1f2937;
+          }
+          
+          .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          
+          .status-paid { background: #d1fae5; color: #065f46; }
+          .status-pending { background: #dbeafe; color: #1d4ed8; }
+          .status-overdue { background: #fee2e2; color: #dc2626; }
+          .status-cancelled { background: #f3f4f6; color: #374151; }
+          
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          
+          .items-table th {
+            background: #2563eb;
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+          }
+          
+          .items-table td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+          }
+          
+          .items-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+          }
+          
+          .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 30px;
+          }
+          
+          .totals-table {
+            width: 300px;
+            border-collapse: collapse;
+          }
+          
+          .totals-table td {
+            padding: 8px 15px;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          
+          .totals-table .total-row {
+            background: #f3f4f6;
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 2px solid #2563eb;
+          }
+          
+          .payment-info {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #10b981;
+          }
+          
+          .payment-info h3 {
+            color: #1f2937;
+            margin-bottom: 15px;
+            font-size: 16px;
+          }
+          
+          .payment-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+          }
+          
+          .payment-item .label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 3px;
+          }
+          
+          .payment-item .value {
+            font-weight: 600;
+            color: #1f2937;
+          }
+          
+          .notes-section {
+            background: #fef7cd;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #f59e0b;
+          }
+          
+          .notes-section h3 {
+            color: #92400e;
+            margin-bottom: 10px;
+          }
+          
+          .notes-section p {
+            color: #78350f;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 12px;
+          }
+          
+          @media print {
+            body { 
+              margin: 0; 
+              padding: 0; 
+            }
+            .invoice-container {
+              padding: 0;
+              max-width: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-container">
+          <!-- Company Header -->
+          <div class="company-header">
+            <div class="company-logo">IMS</div>
+            <div class="company-info">
+              <h1>StockEasy</h1>
+              <p>Inventory Management System</p>
+              <p>123 Business Street, Bangalore, KA 560001, India</p>
+              <p>Phone: +91 9876543210 | Email: info&#64;stockeasy.com</p>
+            </div>
+          </div>
+
+          <!-- Invoice Header -->
+          <div class="invoice-header">
+            <div>
+              <div class="invoice-title">INVOICE</div>
+              <p><strong>Invoice #:</strong> ${this.selectedInvoice.invoice_id}</p>
+              <p><strong>Order #:</strong> ${this.selectedInvoice.order_id}</p>
+              <p><strong>Date:</strong> ${currentDate}</p>
+            </div>
+            <div style="text-align: right;">
+              <p><strong>Status:</strong> 
+                <span class="status-badge status-${this.selectedInvoice.invoiceStatus?.toLowerCase() || 'pending'}">
+                  ${this.getStatusText(this.selectedInvoice.invoiceStatus)}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Billing Details -->
+          <div class="invoice-details">
+            <div class="company-details">
+              <h3>From</h3>
+              <p><strong>StockEasy Pvt Ltd</strong></p>
+              <p>123 Business Street</p>
+              <p>Bangalore, KA 560001</p>
+              <p>India</p>
+              <p><strong>GSTIN:</strong> 22ABCDE1234F1Z5</p>
+              <p><strong>Phone:</strong> +91 9876543210</p>
+              <p><strong>Email:</strong> accounts&#64;stockeasy.com</p>
+            </div>
+            
+            <div class="bill-to">
+              <h3>Bill To</h3>
+              <p><strong>${this.selectedInvoice.supplierName || 'N/A'}</strong></p>
+              <p>Supplier ID: ${this.selectedInvoice.supplier_id}</p>
+              <p>India</p>
+              <p><strong>Phone:</strong> ${this.selectedInvoice.supplierPhone || 'N/A'}</p>
+              <p><strong>Email:</strong> ${this.selectedInvoice.supplierEmail || 'N/A'}</p>
+            </div>
+          </div>
+
+          <!-- Order Information -->
+          <div class="order-info">
+            <div class="info-item">
+              <div class="label">Invoice Date</div>
+              <div class="value">${this.formatDate(this.selectedInvoice.invoiceDate)}</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Due Date</div>
+              <div class="value">${this.formatDate(this.selectedInvoice.dueDate)}</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Category</div>
+              <div class="value">${this.selectedInvoice.productCategory || 'N/A'}</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Payment Status</div>
+              <div class="value">${this.getStatusText(this.selectedInvoice.invoiceStatus)}</div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Product ID</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>PRD-${(this.selectedInvoice.product_id || 1).toString().padStart(3, '0')}</td>
+                <td>
+                  <strong>${this.selectedInvoice.productName || 'N/A'}</strong><br>
+                  <small>Category: ${this.selectedInvoice.productCategory || 'N/A'}</small>
+                </td>
+                <td>${this.selectedInvoice.quantity || '0'} ${this.selectedInvoice.unit || 'Units'}</td>
+                <td>₹${unitPrice.toFixed(2)}</td>
+                <td>₹${(this.selectedInvoice.orderValue || 0).toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Totals -->
+          <div class="totals-section">
+            <table class="totals-table">
+              <tr>
+                <td>Order Value:</td>
+                <td style="text-align: right;">₹${(this.selectedInvoice.orderValue || 0).toFixed(2)}</td>
+              </tr>
+              <tr>
+                <td>Tax (18%):</td>
+                <td style="text-align: right;">₹${taxAmount.toFixed(2)}</td>
+              </tr>
+              <tr class="total-row">
+                <td>Total Amount:</td>
+                <td style="text-align: right;">₹${this.selectedInvoice.amount.toFixed(2)}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Payment Information -->
+          <div class="payment-info">
+            <h3>Payment Information</h3>
+            <div class="payment-grid">
+              <div class="payment-item">
+                <div class="label">Payment Method</div>
+                <div class="value">Bank Transfer</div>
+              </div>
+              <div class="payment-item">
+                <div class="label">Account Number</div>
+                <div class="value">1234567890</div>
+              </div>
+              <div class="payment-item">
+                <div class="label">Bank Name</div>
+                <div class="value">Business Bank</div>
+              </div>
+              <div class="payment-item">
+                <div class="label">IFSC Code</div>
+                <div class="value">BUSI0123456</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="notes-section">
+            <h3>Terms & Conditions</h3>
+            <p>Thank you for your business. Please make payment within 15 days of receiving this invoice. For any questions regarding this invoice, please contact our accounts department at accounts&#64;stockeasy.com or call +91 9876543210.</p>
+          </div>
+
+          <!-- Footer -->
+          <div class="footer">
+            <p>This is a computer-generated invoice and does not require a signature.</p>
+            <p>Generated on ${currentDate} | StockEasy Inventory Management System</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
   // Generate PDF content (simplified version)
@@ -651,12 +1133,12 @@ startxref
 
   // Get status text for display
   getStatusText(status: string): string {
-    switch (status) {
+    switch (status?.toLowerCase() || 'pending') {
       case 'paid': return 'Paid';
       case 'pending': return 'Pending';
       case 'overdue': return 'Overdue';
       case 'cancelled': return 'Cancelled';
-      default: return status;
+      default: return 'Pending';
     }
   }
 

@@ -85,6 +85,32 @@
 
             <!-- Filters -->
             <div class="bg-white p-4 rounded-xl shadow-md mb-6">
+            <!-- Search Bar -->
+            <div class="mb-4">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        [(ngModel)]="searchTerm" 
+                        (input)="onSearchChange()"
+                        placeholder="Search by invoice #, customer name, product name, order #, status, or category..." 
+                        class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <div *ngIf="searchTerm" class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        <button (click)="clearSearch()" class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Search Results Indicator -->
+                <div *ngIf="searchTerm" class="mt-2 text-sm text-gray-600">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Showing results for: <span class="font-semibold">"{{ searchTerm }}"</span> 
+                    ({{ filteredInvoices.length }} {{ filteredInvoices.length === 1 ? 'result' : 'results' }} found)
+                </div>
+            </div>
+
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div class="flex flex-col md:flex-row gap-4 w-full">
                 <div class="w-full md:w-48">
