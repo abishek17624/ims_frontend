@@ -14,8 +14,8 @@ if (!fs.existsSync(targetDir)) {
   fs.mkdirSync(targetDir, { recursive: true });
 }
 
-// Read API URL from .env or fallback
-const apiUrl = process.env.NG_APP_API_URL || 'http://localhost:3000/api';
+// Read API URL from .env or fallback to production backend
+const apiUrl = process.env.NG_APP_API_URL || 'https://stockeasybackend.vercel.app/api';
 
 // Template for environment configuration
 const envConfigFile = `export const environment = {
