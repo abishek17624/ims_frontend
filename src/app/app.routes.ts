@@ -14,8 +14,8 @@ import { AdminReportComponent } from './adminpage/admin-content/admin-report/adm
 import { AdminSalespersonComponent } from './adminpage/admin-content/admin-salesperson/admin-salesperson.component';
 import { AdminSupplierComponent } from './adminpage/admin-content/admin-supplier/admin-supplier.component';
 import { AdminSettingComponent } from './adminpage/admin-content/admin-setting/admin-setting.component';
-import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
+import { Routes } from '@angular/router';
+
 import { SupplierhomeComponent } from './supplierpage/supplierhome/supplierhome.component';
 
 import { authGuard } from './core/guards/auth.guard';
@@ -100,12 +100,4 @@ export const routes: Routes = [
   }
 
 ];
-
-@NgModule({
-  imports: [RouterModule.forRoot(routes)],
-  exports: [RouterModule]
-})
-export class AppRoutingModule { }
-
-
 
